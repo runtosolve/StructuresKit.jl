@@ -1,12 +1,14 @@
 # StructuresKit
 
-[![Build Status](https://ci.appveyor.com/api/projects/status/github/runtosolve/StructuresKit.jl?svg=true)](https://ci.appveyor.com/project/runtosolve/StructuresKit-jl)
-[![Codecov](https://codecov.io/gh/runtosolve/StructuresKit.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/runtosolve/StructuresKit.jl)
+[![Build Status](https://travis-ci.org/runtosolve/StructuresKit.jl.svg?branch=master)](https://travis-ci.org/runtosolve/StructuresKit.jl)
+[![Build status](https://ci.appveyor.com/api/projects/status/idfm6woehn70umgn?svg=true)](https://ci.appveyor.com/project/cristophermoen/structureskit-jl)
+[![codecov](https://codecov.io/gh/runtosolve/StructuresKit.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/runtosolve/StructuresKit.jl)
+
 
 ## Usage
 This package provides coded pieces and parts for analyzing structural components and systems.
 
-##Modules
+## Modules
 
 [PlautBeam](https://github.com/runtosolve/StructuresKit.jl/blob/master/docs/PlautBeam.md)
 
@@ -16,7 +18,7 @@ Perform second order structural analysis of single or multi-span thin-walled bea
 
 Calculate internal axial force, shear, moment, torsion, and bimoment from a structural member's displaced shape.
 
-##Example
+## Example
 
 ```
 using StructuresKit
