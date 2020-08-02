@@ -1,5 +1,11 @@
 module StructuresKit
 
-greet() = print("Hello World!")
+export PlautBeam
+include("PlautBeam.jl")
+using .PlautBeam
 
-end # module
+export InternalForces
+include("InternalForces.jl")
+using .InternalForces
+
+end

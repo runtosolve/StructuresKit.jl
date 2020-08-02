@@ -1,6 +1,4 @@
-using StructuresKit
-using Test
+using SafeTestsets
 
-@testset "StructuresKit.jl" begin
-    # Write your own tests here.
-end
+@safetestset "PlautBeam" begin include("PlautBeamTestset.jl") end
+@safetestset "InternalForces" begin include("InternalForcesTestset.jl") end
