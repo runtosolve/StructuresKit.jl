@@ -1,5 +1,5 @@
-using PlautBeam
-using InternalForces
+using StructuresKit
+using Test
 
 #Test moment and shear calculation for a simply-supported beam.
 
@@ -30,11 +30,11 @@ supports = [0.0 30*12]
 #load  qx   qy
 uniformLoad = (0.0, 5.0/1000)
 
-z, u, v, ϕ, BeamProperties = SolvePlautBeam(memberDefinitions, sectionProperties, materialProperties, loadLocation, springStiffness, endBoundaryConditions, supports, uniformLoad)
+z, u, v, ϕ, BeamProperties = PlautBeam.solve(memberDefinitions, sectionProperties, materialProperties, loadLocation, springStiffness, endBoundaryConditions, supports, uniformLoad)
 
-Mxx = -calculateMoment(v, z, BeamProperties.E, BeamProperties.Ix)
+Mxx = -InternalForces.moment(v, z, BeamProperties.E, BeamProperties.Ix)
 
-Vyy = calculateShear(z, Mxx)
+Vyy = InternalForces.shear(z, Mxx)
 
 
 maxMxx = maximum(Mxx)

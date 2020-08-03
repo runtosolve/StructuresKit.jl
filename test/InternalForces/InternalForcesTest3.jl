@@ -1,5 +1,5 @@
-using PlautBeam
-using InternalForces
+using StructuresKit
+using Test
 
 
 #Test shear and moment calculations for a cantilever beam.
@@ -32,14 +32,14 @@ supports = [0.0]
 #load  qx   qy
 uniformLoad = (0.0, 5.0/1000)
 
-z, u, v, ϕ, BeamProperties = SolvePlautBeam(memberDefinitions, sectionProperties, materialProperties, loadLocation, springStiffness, endBoundaryConditions, supports, uniformLoad)
+z, u, v, ϕ, BeamProperties = PlautBeam.solve(memberDefinitions, sectionProperties, materialProperties, loadLocation, springStiffness, endBoundaryConditions, supports, uniformLoad)
 
 using Plots
 plot(z, Vyy)
 
 
-Mxx = -calculateMoment(v, z, BeamProperties.E, BeamProperties.Ix)
-Vyy = calculateShear(z, Mxx)
+Mxx = -InternalForces.moment(v, z, BeamProperties.E, BeamProperties.Ix)
+Vyy = InternalForces.shear(z, Mxx)
 
 
 maxMxx = minimum(Mxx)

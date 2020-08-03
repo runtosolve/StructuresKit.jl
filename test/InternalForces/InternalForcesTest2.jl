@@ -1,5 +1,5 @@
-using PlautBeam
-using InternalForces
+using StructuresKit
+using Test
 
 
 #Test torsion calculation for a simply-supported beam with
@@ -33,9 +33,9 @@ supports = [0.0 30*12]
 #load  qx   qy
 uniformLoad = (0.0, 5.0/1000)
 
-z, u, v, ϕ, BeamProperties = SolvePlautBeam(memberDefinitions, sectionProperties, materialProperties, loadLocation, springStiffness, endBoundaryConditions, supports, uniformLoad)
+z, u, v, ϕ, BeamProperties = PlautBeam.solve(memberDefinitions, sectionProperties, materialProperties, loadLocation, springStiffness, endBoundaryConditions, supports, uniformLoad)
 
-T = calculateTorsion(ϕ, z, BeamProperties.E, BeamProperties.G, BeamProperties.J, BeamProperties.Cw)
+T = InternalForces.torsion(ϕ, z, BeamProperties.E, BeamProperties.G, BeamProperties.J, BeamProperties.Cw)
 
 using Plots
 

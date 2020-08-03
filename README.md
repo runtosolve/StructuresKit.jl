@@ -6,7 +6,7 @@
 
 
 ## Usage
-This package provides coded pieces and parts for analyzing structural components and systems.
+Use this package to simulate the behavior of structural components and systems under load.   The current offerings are pretty niche, with a focus on thin-walled structures and metal building roof systems.  There is plenty of potential for growth with Julia's numerical firepower at hand though, especially for large systems problems in the field of wind and earthquake engineering.  This is just the beginning.
 
 ## Modules
 
@@ -17,6 +17,8 @@ Perform second order structural analysis of single or multi-span thin-walled bea
 [InternalForces](https://github.com/runtosolve/StructuresKit.jl/blob/master/docs/InternalForces.md)
 
 Calculate internal axial force, shear, moment, torsion, and bimoment from a structural member's displaced shape.
+
+
 
 ## Example
 
