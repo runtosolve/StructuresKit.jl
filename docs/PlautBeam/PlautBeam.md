@@ -1,13 +1,12 @@
 # PlautBeam
 
-## Usage
 This module performs second order structural analysis of single or multi-span thin-walled beams with a uniform loading.   The location of the uniform loading on the cross-section (e.g., top of flange, bottom of flange, through the shear center) can be specified.  Lateral and vertical loads can be applied. Continuous lateral and rotational springs are available to simulate attachment bracing.  
 
 ## Nomenclature
 
 Here are some possible beam cross-section configurations that can be considered.
 
-![Package nomenclature](/figures/crosssections.png)
+![Package nomenclature](/docs/PlautBeam/figures/crosssections.png)
 
 ## Example
 Calculate the deflection of a 25 ft. simple span Z-section purlin.  Consistent units of kips and inches are used.  The purlin is loaded at the center of the top flange with a uniform downward gravity load.   Roof slope is not considered. Continuous bracing from roof sheathing is provided as `kx=0.100 kips/in.\in.` and `kϕ=0.100 kip-in./rad/in.`.
@@ -50,7 +49,7 @@ SpringStiffness = [(0.100, 0.100)]
              #qx   qy
 UniformLoad=(0.0, 0.001)
 
-u, v, ϕ, z, BeamProperties = SolvePlautBeam(MemberDefinitions, SectionProperties, MaterialProperties, LoadLocation, SpringStiffness, EndBoundaryConditions, Supports, UniformLoad)
+u, v, ϕ, z, BeamProperties = PlautBeam.solve(MemberDefinitions, SectionProperties, MaterialProperties, LoadLocation, SpringStiffness, EndBoundaryConditions, Supports, UniformLoad)
 
 #plot twist and moment
 using Plots
@@ -96,7 +95,7 @@ Check against Figure 14 in the Plaut and Moen (2020) JCSR manuscript calculated 
 ### PlautBeamTest3.jl
 Compare PlautBeam solution to LS-DYNA thin shell FEA solution.
 
-The [LS-DYNA input file](https://github.com/runtosolve/PlautBeam.jl/tree/master/test/testsources/PlautBeamTest3) is provided.
+The [LS-DYNA input file](/test/PlautBeam/testfiles/PlautBeamTest3/SSRCExample2r6.k) is provided.
 
 Example 2 Plaut, R.H., Moen, C.D.(2020). "Lateral-Torsional Deformations of C-Section and Z-Section Beams with Continuous Bracing".  Proceedings of the Structural Stability Research Council Annual Conference, Atlanta, Georgia.
 
