@@ -1,5 +1,4 @@
-using PlautBeam
-using InternalForces
+using StructuresKit
 
 
 #Test shear and moment calculations for a three span continuous beam.
@@ -32,18 +31,18 @@ supports = [0.0 30.0*12/3 30.0*12*(2/3) 30.0*12]
 #load  qx   qy
 uniformLoad = (0.0, 5.0/1000)
 
-z, u, v, ϕ, BeamProperties = SolvePlautBeam(memberDefinitions, sectionProperties, materialProperties, loadLocation, springStiffness, endBoundaryConditions, supports, uniformLoad)
+z, u, v, ϕ, beamProperties = PlautBeam.solve(memberDefinitions, sectionProperties, materialProperties, loadLocation, springStiffness, endBoundaryConditions, supports, uniformLoad)
 
 using Plots
 plot(z, v)
 
-Mxx = -calculateMoment(v, z, BeamProperties.E, BeamProperties.Ix)
+Mxx = InternalForces.moment(z, -v, beamProperties.E, beamProperties.Ix)
+plot(z, Mxx)
 
 #consider using interpolation of Mxx here to get more accurate Vyy
 
-Vyy = calculateShear(z, Mxx)
+Vyy = InternalForces.shear(z, v, beamProperties.E, beamProperties.Ix)
 
-plot(z, Mxx)
 plot(z, Vyy)
 
 #check interior moment over a support
@@ -57,7 +56,7 @@ intVyy = Vyy[intIndex[1]-1]
 #http://faculty-legacy.arch.tamu.edu/anichols/index_files/courses/arch331/NS8-2beamdiagrams.pdf
 #Figure 36
 intMxx_AISC = -0.100*uniformLoad[2]*z[intIndex[1]].^2
-intVyy_AISC = -0.600*uniformLoad[2]*z[intIndex[1]]
+intVyy_AISC = -0.600*uniformLoad[2]*z[intIndex[1]] + uniformLoad[2]*3.0  #shear is checked 3 in. away from support
 
 
 MxxError= abs((intMxx - intMxx_AISC)/ intMxx_AISC)
@@ -66,4 +65,4 @@ VyyError= abs((intVyy - intVyy_AISC)/ intVyy_AISC)
 
 #accept 1% error from numerical solution
 @test MxxError <= 0.01
-@test VyyError <= 0.04  #
+@test VyyError <= 0.01

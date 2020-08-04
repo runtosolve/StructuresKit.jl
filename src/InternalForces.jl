@@ -180,7 +180,7 @@ function calculateDerivativeOperators(z)
 end
 
 
-function moment(Δ, z, E, I)
+function moment(z, Δ, E, I)
 
     Az, Azz, Azzz = calculateDerivativeOperators(z)
 
@@ -190,17 +190,17 @@ function moment(Δ, z, E, I)
 
 end
 
-function shear(z, M)
+function shear(z, Δ, E, I)
 
     Az, Azz, Azzz = calculateDerivativeOperators(z)
 
-    V = Az * M
+    V = -E .* I .* Azzz * Δ
 
     return V
 
 end
 
-function torsion(ϕ, z, E, G, J, Cw)
+function torsion(z, ϕ, E, G, J, Cw)
 
     Az, Azz, Azzz = calculateDerivativeOperators(z)
 
@@ -211,7 +211,7 @@ function torsion(ϕ, z, E, G, J, Cw)
 
 end
 
-function bimoment(ϕ, z, E, Cw)
+function bimoment(z, ϕ, E, Cw)
 
     Az, Azz, Azzz = calculateDerivativeOperators(z)
 
