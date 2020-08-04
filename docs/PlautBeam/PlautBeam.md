@@ -1,10 +1,7 @@
-# PlautBeam.jl
-
-[![Build status](https://ci.appveyor.com/api/projects/status/jrc8gafc3ke6gky9?svg=true)](https://ci.appveyor.com/project/cristophermoen/plautbeam-jl)
-[![Codecov](https://codecov.io/gh/runtosolve/PlautBeam.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/runtosolve/PlautBeam.jl)
+# PlautBeam
 
 ## Usage
-This package performs second order structural analysis of single or multi-span thin-walled beams with a uniform loading.   The location of the uniform loading on the cross-section (e.g., top of flange, bottom of flange, through the shear center) can be specified.  Lateral and vertical loads can be applied. Continuous lateral and rotational springs are available to simulate attachment bracing.  
+This module performs second order structural analysis of single or multi-span thin-walled beams with a uniform loading.   The location of the uniform loading on the cross-section (e.g., top of flange, bottom of flange, through the shear center) can be specified.  Lateral and vertical loads can be applied. Continuous lateral and rotational springs are available to simulate attachment bracing.  
 
 ## Nomenclature
 
