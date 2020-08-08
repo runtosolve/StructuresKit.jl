@@ -194,7 +194,7 @@ function shear(z, Δ, E, I)
 
     Az, Azz, Azzz = calculateDerivativeOperators(z)
 
-    V = -E .* I .* Azzz * Δ
+    V = E .* I .* Azzz * Δ
 
     return V
 
