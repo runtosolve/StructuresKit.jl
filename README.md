@@ -6,7 +6,7 @@
 
 
 ## Usage
-Use this package to analyze and design structural components and systems in service and during extreme events (earthquakes, hurricanes,...).   
+Use this package to analyze and design structural components and systems.   
 
 ## Status
 The current offerings are pretty niche, with a focus on thin-walled structures.  There is plenty of potential for growth with Julia's numerical firepower at hand though, especially for large system problems.  This is just the beginning.
