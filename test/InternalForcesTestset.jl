@@ -1,4 +1,3 @@
-using StructuresKit
 using Test
 
 @testset "InternalForces" begin

@@ -1,5 +1,4 @@
 using StructuresKit
-using Test
 
 #Verify Julia solution against Mathematica solution from
 #Example 2 from Plaut, R.H., Moen, C.D.(2020). "Lateral-Torsional Deformations of Single-Span and Two-Span Thin-Walled Beams with Continuous Bracing".

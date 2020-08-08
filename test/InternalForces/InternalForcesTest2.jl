@@ -1,6 +1,4 @@
 using StructuresKit
-using Test
-
 
 #Test torsion calculation for a simply-supported beam with
 #twist fixed warping free ends.
@@ -33,16 +31,12 @@ supports = [0.0 30*12]
 #load  qx   qy
 uniformLoad = (0.0, 5.0/1000)
 
-z, u, v, ϕ, BeamProperties = PlautBeam.solve(memberDefinitions, sectionProperties, materialProperties, loadLocation, springStiffness, endBoundaryConditions, supports, uniformLoad)
+z, u, v, ϕ, beamProperties = PlautBeam.solve(memberDefinitions, sectionProperties, materialProperties, loadLocation, springStiffness, endBoundaryConditions, supports, uniformLoad)
 
-T = InternalForces.torsion(ϕ, z, BeamProperties.E, BeamProperties.G, BeamProperties.J, BeamProperties.Cw)
-
-using Plots
-
-plot(z, T)
+T = InternalForces.torsion(z, ϕ, beamProperties.E, beamProperties.G, beamProperties.J, beamProperties.Cw)
 
 maxT = maximum(T)
-maxT_theory = (uniformLoad[2] *BeamProperties.ax[1] *z[end])/2
+maxT_theory = (uniformLoad[2] * beamProperties.ax[1] * z[end])/2
 
 Error= abs((maxT - maxT_theory))/ maxT_theory
 

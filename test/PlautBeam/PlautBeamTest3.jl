@@ -1,5 +1,4 @@
 using StructuresKit
-using Test
 
 #Compare Julia solution with LS-DYNA thin-shell FEA
 #Example 2 from Plaut, R.H., Moen, C.D.(2020). "Lateral-Torsional Deformations of C-Section and Z-Section Beams with Continuous Bracing".  Proceedings of the Structural Stability Research Council Annual Conference, Atlanta, Georgia.

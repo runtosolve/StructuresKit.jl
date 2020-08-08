@@ -1,6 +1,5 @@
 using StructuresKit
 
-
 #Test shear and moment calculations for a three span continuous beam.
 
 
@@ -33,17 +32,9 @@ uniformLoad = (0.0, 5.0/1000)
 
 z, u, v, ϕ, beamProperties = PlautBeam.solve(memberDefinitions, sectionProperties, materialProperties, loadLocation, springStiffness, endBoundaryConditions, supports, uniformLoad)
 
-using Plots
-plot(z, v)
-
 Mxx = InternalForces.moment(z, -v, beamProperties.E, beamProperties.Ix)
-plot(z, Mxx)
-
-#consider using interpolation of Mxx here to get more accurate Vyy
 
 Vyy = InternalForces.shear(z, v, beamProperties.E, beamProperties.Ix)
-
-plot(z, Vyy)
 
 #check interior moment over a support
 
