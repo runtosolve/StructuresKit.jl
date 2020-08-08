@@ -222,16 +222,5 @@ function bimoment(z, ϕ, E, Cw)
 
 end
 
-function principalMoments(Mxx, Myy, Ix, Iy, Ixy)
 
-    #calculate rotation angle to principal axes
-    α=1/2 .*atan.(-2 .*Ixy./(Ix[1,:] .-Iy[1,:]))
-
-    #calculate principal moments, left hand rule
-    M1=Mxx.*cos.(α) .+Myy.*sin.(α)
-    M2=-Mxx.*sin.(α) .+Myy.*cos.(α)
-
-    return α, M1, M2
-
-end
 end #module

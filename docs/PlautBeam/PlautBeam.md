@@ -1,25 +1,20 @@
 # PlautBeam
 
-This module performs second order structural analysis of single or multi-span thin-walled beams with a uniform loading.   The location of the uniform loading on the cross-section (e.g., top of flange, bottom of flange, through the shear center) can be specified.  Lateral and vertical loads can be applied. Continuous lateral and rotational springs are available to simulate attachment bracing.  
+Perform second order structural analysis of single or multi-span thin-walled beams with a uniform loading.   The location of the uniform loading on the cross-section (e.g., top of flange, bottom of flange, through the shear center) can be specified.  Lateral and vertical loads can be applied which can be convenient for considering roof slope. Continuous lateral and rotational springs are available to simulate attachment bracing.  
 
 ## Nomenclature
 
-Here are some possible beam cross-section configurations that can be considered.
+Here are some possible beam cross-section configurations.
 
 ![Package nomenclature](/docs/PlautBeam/figures/crosssections.png)
 
 ## Example
-Calculate the deflection of a 25 ft. simple span Z-section purlin.  Consistent units of kips and inches are used.  The purlin is loaded at the center of the top flange with a uniform downward gravity load.   Roof slope is not considered. Continuous bracing from roof sheathing is provided as `kx=0.100 kips/in.\in.` and `kϕ=0.100 kip-in./rad/in.`.
+Calculate the deflection of a 25 ft. simple span Z-section purlin.  Consistent units of kips and inches are used.  The purlin is loaded at the center of the top flange with a uniform downward gravity load. Continuous bracing from roof sheathing is provided as `kx=0.100 kips/in.\in.` and `kϕ=0.100 kip-in./rad/in.`.
 
 ```julia
+using StructuresKit
 
-#adds the PlautBeam package to your local environment
-pkg"add https://github.com/runtosolve/PlautBeam.jl"
-pkg"dev PlautBeam"
-using PlautBeam
-
-
-#The beam line is discretized on grid.
+#The beam line is discretized on a grid.
 #Each row defines one segment of the beam span from left to right.
 
 #MemberDefinitions defines the information about each beam segment.
@@ -49,9 +44,9 @@ SpringStiffness = [(0.100, 0.100)]
              #qx   qy
 UniformLoad=(0.0, 0.001)
 
-u, v, ϕ, z, BeamProperties = PlautBeam.solve(MemberDefinitions, SectionProperties, MaterialProperties, LoadLocation, SpringStiffness, EndBoundaryConditions, Supports, UniformLoad)
+z, u, v, ϕ, BeamProperties = PlautBeam.solve(MemberDefinitions, SectionProperties, MaterialProperties, LoadLocation, SpringStiffness, EndBoundaryConditions, Supports, UniformLoad)
 
-#plot twist and moment
+#plot beam deformed shape
 using Plots
 plot(z, u)
 plot(z, v)
@@ -59,7 +54,7 @@ plot(z, ϕ)
 
 ```
 ## Background
-The theory and equations supporting this package are documented in:
+The theory and equations supporting this module are documented in:
 
  Plaut, R.H., Moen, C.D. (2020). ["Lateral-Torsional Deformations of C-Section and Z-Section Beams with Continuous Bracing."](https://cloud.aisc.org/SSRC/2020.html?_zs=X87We1&_zl=EMjo6)   Proceedings of the Annual Stability Conference, Structural Stability Research Council.
 
@@ -68,7 +63,7 @@ The theory and equations supporting this package are documented in:
 ## Numerical solution
 Deformations `u`, `v`, and `ϕ` of the thin-walled beam are obtained with the solution of a system of ordinary differential equations.
 
-Finite difference derivative operators are defined as a function of the deformations using [DiffEqOperators.jl](https://github.com/SciML/DiffEqOperators.jl), e.g., the fourth derivative of *u* with respect to *z*, `uzzzz=Azzzz*u`, and then with a uniform load *q* defined, the system of nonlinear equations are solved for `u`, `v`, and `ϕ` with [NLsolve.jl](https://github.com/JuliaNLSolvers/NLsolve.jl). Internal forces and moments are calculated with finite difference derivative operators, e.g., `Mxx=Azz*v*E*I`.
+Finite difference derivative operators are defined as a function of the deformations using [DiffEqOperators.jl](https://github.com/SciML/DiffEqOperators.jl), e.g., the fourth derivative of *u* with respect to *z*, `uzzzz=Azzzz*u`, and then with a uniform load *q* defined, the system of nonlinear equations are solved for `u`, `v`, and `ϕ` with [NLsolve.jl](https://github.com/JuliaNLSolvers/NLsolve.jl).
 
 Boundary conditions for free ends, simply supported ends, and fixed ends are implemented with finite difference stencils calculated with the method described by [Souza].(https://cimec.org.ar/ojs/index.php/mc/article/view/2662 )
 
