@@ -16,4 +16,8 @@ export AISIS10024
 include("AISIS10024.jl")
 using .AISIS10024
 
+export PurlinDesigner
+include("PurlinDesigner.jl")
+using .PurlinDesigner
+
 end
