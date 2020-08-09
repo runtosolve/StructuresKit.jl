@@ -34,7 +34,7 @@ z, u, v, ϕ, beamProperties = PlautBeam.solve(memberDefinitions, sectionProperti
 
 Mxx = InternalForces.moment(z, -v, beamProperties.E, beamProperties.Ix)
 
-Vyy = InternalForces.shear(z, v, beamProperties.E, beamProperties.Ix)
+Vyy = InternalForces.shear(z, -v, beamProperties.E, beamProperties.Ix)
 
 #check interior moment over a support
 

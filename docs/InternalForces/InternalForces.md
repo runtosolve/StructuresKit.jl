@@ -11,7 +11,7 @@ Positive deformations and twist are defined in the figure below. Positive intern
 
 ## Functions
 
-`M = - d2Δ/dz2*E*I`
+`M = d2Δ/dz2*E*I`
 ```julia
 M = moment(z, Δ, E, I)
 ```
@@ -21,13 +21,12 @@ M = moment(z, Δ, E, I)
 V = shear(z, Δ, E, I)
 ```
 
-`T=GJ*dϕ/dz - ECw*dϕ3/dz3`
-For uniform torsion set `Cw=0`.
+`T = GJ*dϕ/dz - ECw*dϕ3/dz3`
 ```julia
 T = torsion(z, ϕ, E, G, J, Cw)
 ```
 
-`B=ECwd2ϕ/dz`
+`B = ECwd2ϕ/dz`
 ```julia
 B = bimoment(z, ϕ, E, Cw)
 ```
@@ -37,6 +36,7 @@ B = bimoment(z, ϕ, E, Cw)
 Calculate the internal forces and moments for a 25 ft. simple span Z-section purlin.  Consistent units of kips and inches are used.  The purlin is loaded at the center of the top flange with a uniform downward gravity load.
 
 ```julia
+
 using StructuresKit
 
 #calculate beam deformed shape with PlautBeam
@@ -68,20 +68,25 @@ uniformLoad=(0.0, 0.001)
 
 z, u, v, ϕ, beamProperties = PlautBeam.solve(memberDefinitions, sectionProperties, materialProperties, loadLocation, springStiffness, endBoundaryConditions, supports, uniformLoad)
 
-Mxx = InternalForces.moment(z, v, beamProperties.E, beamProperties.Ix)
-Myy = InternalForces.moment(z, u, beamProperties.E, beamProperties.Iy)
-Vyy = InternalForces.shear(z, v, beamProperties.E, beamProperties.Ix)
-Vxx = InternalForces.shear(z, u, beamProperties.E, beamProperties.Iy)
+
+#note -u and -v below because PlautBeam positive deformation directions are reversed
+Mxx = InternalForces.moment(z, -v, beamProperties.E, beamProperties.Ix)
+Myy = InternalForces.moment(z, -u, beamProperties.E, beamProperties.Iy)
+Vyy = InternalForces.shear(z, -v, beamProperties.E, beamProperties.Ix)
+Vxx = InternalForces.shear(z, -u, beamProperties.E, beamProperties.Iy)
 T = InternalForces.torsion(z, ϕ, beamProperties.E, beamProperties.G, beamProperties.J, beamProperties.Cw)
+B = InternalForces.bimoment(z, ϕ, beamProperties.E, beamProperties.Cw)
 
 
-#plot beam moment, shear, and torsion
+#plot beam moment, shear, torsion, and bimoment
+
 using Plots
 plot(z, Mxx)
 plot(z, Myy)
 plot(z, Vyy)
 plot(z, Vxx)
 plot(z, T)
+plot(z, B)
 
 ```
 
@@ -103,6 +108,8 @@ Test shear and moment calculations for a cantilever beam.
 ### InternalForcesTest4.jl
 Test shear and moment calculations for a three span continuous beam.
 
+### InternalForcesTest5.jl
+Test bimoment calculation for a simple span beam.
 
 ### Tests needed
-* check bimoment
+None at this time
