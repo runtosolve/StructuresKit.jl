@@ -33,7 +33,7 @@ function defineMesh(MemberDefinitions)
 end
 
 
-function buildPropertyVector(MemberDefinitions, dm, dz, Property, PropertyOrder, PropertyType)
+function buildPropertyVector(MemberDefinitions, dm, dz, Property, PropertyOrder, PropertyType, TransitionWindow)
 
 
    z = [0; cumsum(dz)]
@@ -48,7 +48,11 @@ function buildPropertyVector(MemberDefinitions, dm, dz, Property, PropertyOrder,
       A[i] = Property[PropertyIndex][PropertyType]
    end
 
-   A=propertyTransition(z, A)
+
+
+   A=propertyTransition(z, A, TransitionWindow)
+
+
 
 
    return A
@@ -56,7 +60,7 @@ function buildPropertyVector(MemberDefinitions, dm, dz, Property, PropertyOrder,
 end
 
 
-function propertyTransition(z, Property)
+function propertyTransition(z, Property, TransitionWindow)
 
     PropertyChanges=diff(Property, dims=1)  #calculate jumps
 
@@ -67,7 +71,7 @@ function propertyTransition(z, Property)
        for i=1:length(JumpIndex)  #iterate over each jump
 
            # TransitionWindow=AllTransitionWindows[i]
-             TransitionWindow=2   #hard code this, see how it goes with users
+             # TransitionWindow=4   #hard code this, see how it goes with users
 
            # if TransitionWindow > 0
 
@@ -242,7 +246,7 @@ end
 
 
 
-function definePlautBeam(MemberDefinitions, SectionProperties, MaterialProperties, LoadLocation, SpringStiffness, EndBoundaryConditions, Supports, UniformLoad)
+function definePlautBeam(MemberDefinitions, SectionProperties, MaterialProperties, LoadLocation, SpringStiffness, EndBoundaryConditions, Supports, UniformLoad, TransitionWindow)
 
 
    dz, dm = defineMesh(MemberDefinitions)
@@ -259,21 +263,21 @@ function definePlautBeam(MemberDefinitions, SectionProperties, MaterialPropertie
    Azz = applyEndBoundaryConditions(Azz,EndBoundaryConditions,NthDerivative,dz)
 
    #define property vectors
-   Ix=buildPropertyVector(MemberDefinitions, dm, dz, SectionProperties, 3, 1)
-   Iy=buildPropertyVector(MemberDefinitions, dm, dz, SectionProperties, 3, 2)
-   Ixy=buildPropertyVector(MemberDefinitions, dm, dz, SectionProperties, 3, 3)
-   J=buildPropertyVector(MemberDefinitions, dm, dz, SectionProperties, 3, 4)
-   Cw=buildPropertyVector(MemberDefinitions, dm, dz, SectionProperties, 3, 5)
+   Ix=buildPropertyVector(MemberDefinitions, dm, dz, SectionProperties, 3, 1, TransitionWindow)
+   Iy=buildPropertyVector(MemberDefinitions, dm, dz, SectionProperties, 3, 2, TransitionWindow)
+   Ixy=buildPropertyVector(MemberDefinitions, dm, dz, SectionProperties, 3, 3, TransitionWindow)
+   J=buildPropertyVector(MemberDefinitions, dm, dz, SectionProperties, 3, 4, TransitionWindow)
+   Cw=buildPropertyVector(MemberDefinitions, dm, dz, SectionProperties, 3, 5, TransitionWindow)
 
-   E = buildPropertyVector(MemberDefinitions, dm, dz, MaterialProperties, 4, 1)
-   ν = buildPropertyVector(MemberDefinitions, dm, dz, MaterialProperties, 4, 2)
+   E = buildPropertyVector(MemberDefinitions, dm, dz, MaterialProperties, 4, 1, TransitionWindow)
+   ν = buildPropertyVector(MemberDefinitions, dm, dz, MaterialProperties, 4, 2, TransitionWindow)
    G = E./(2 .*(1 .+ ν))
 
-   ax=buildPropertyVector(MemberDefinitions, dm, dz, LoadLocation, 5, 1)
-   ay=buildPropertyVector(MemberDefinitions, dm, dz, LoadLocation, 5, 2)
+   ax=buildPropertyVector(MemberDefinitions, dm, dz, LoadLocation, 5, 1, TransitionWindow)
+   ay=buildPropertyVector(MemberDefinitions, dm, dz, LoadLocation, 5, 2, TransitionWindow)
 
-   kx=buildPropertyVector(MemberDefinitions, dm, dz, SpringStiffness, 6, 1)
-   kϕ=buildPropertyVector(MemberDefinitions, dm, dz, SpringStiffness, 6, 2)
+   kx=buildPropertyVector(MemberDefinitions, dm, dz, SpringStiffness, 6, 1, TransitionWindow)
+   kϕ=buildPropertyVector(MemberDefinitions, dm, dz, SpringStiffness, 6, 2, TransitionWindow)
 
 
    #define load
@@ -340,7 +344,7 @@ function residual!(R,U,K,F)
 end
 
 
-function solve(MemberDefinitions, SectionProperties, MaterialProperties, LoadLocation, SpringStiffness, EndBoundaryConditions, Supports, UniformLoad)
+function solve(MemberDefinitions, SectionProperties, MaterialProperties, LoadLocation, SpringStiffness, EndBoundaryConditions, Supports, UniformLoad, TransitionWindow)
 
    dz, dm = defineMesh(MemberDefinitions)
 
@@ -352,7 +356,7 @@ function solve(MemberDefinitions, SectionProperties, MaterialProperties, LoadLoc
    v=zeros(NumberOfNodes)
    ϕ=zeros(NumberOfNodes)
 
-   K, F, FreeDOF, Ix, Iy, Ixy, J, Cw, E, ν, G, ax, ay, kx, kϕ = definePlautBeam(MemberDefinitions, SectionProperties, MaterialProperties, LoadLocation, SpringStiffness, EndBoundaryConditions, Supports, UniformLoad)
+   K, F, FreeDOF, Ix, Iy, Ixy, J, Cw, E, ν, G, ax, ay, kx, kϕ = definePlautBeam(MemberDefinitions, SectionProperties, MaterialProperties, LoadLocation, SpringStiffness, EndBoundaryConditions, Supports, UniformLoad, TransitionWindow)
 
    Uguess=K\F
 
