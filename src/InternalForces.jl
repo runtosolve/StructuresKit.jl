@@ -2,7 +2,7 @@ module InternalForces
 
 using DiffEqOperators: CenteredDifference
 
-export moment, shear, torsion, bimoment, principalMoments
+export moment, shear, torsion, bimoment
 
 
 #############################################################
