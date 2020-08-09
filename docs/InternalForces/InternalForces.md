@@ -7,7 +7,7 @@ Calculate internal forces and moments from a structural member's deformed shape.
 
 Positive deformations and twist are defined in the figure below. Positive internal moments, bimoment, and torsion follow the right hand rule.  
 
-![Nomenclature](/figures/beamaxes.png)
+![Nomenclature](/docs/InternalForces/figures/beamaxes.png)
 
 ## Functions
 
