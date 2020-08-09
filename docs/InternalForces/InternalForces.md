@@ -5,7 +5,7 @@ Calculate internal forces and moments from a structural member's deformed shape.
 
 ## Nomenclature
 
-Positive deformations are defined in the figure below. Positive moments and torsion follow the left hand rule.   
+Positive deformations and twist are defined in the figure below. Positive internal moments, bimoment, and torsion follow the right hand rule.  
 
 ![Nomenclature](/figures/beamaxes.png)
 
@@ -60,7 +60,7 @@ materialProperties = [(29500, 0.30)]
                         #ax         ay
 loadLocation = [((2.250-0.070/2)/2, 4.0)]
 
-                      #kx  kϕ  
+                      #kx  kϕ
 springStiffness = [(0.0, 0.0)]
 
              #qx   qy
@@ -68,15 +68,19 @@ uniformLoad=(0.0, 0.001)
 
 z, u, v, ϕ, beamProperties = PlautBeam.solve(memberDefinitions, sectionProperties, materialProperties, loadLocation, springStiffness, endBoundaryConditions, supports, uniformLoad)
 
-Mxx = InternalForces.moment(z, v, beamProperties.E, beamProperties.Ix)  
+Mxx = InternalForces.moment(z, v, beamProperties.E, beamProperties.Ix)
+Myy = InternalForces.moment(z, u, beamProperties.E, beamProperties.Iy)
 Vyy = InternalForces.shear(z, v, beamProperties.E, beamProperties.Ix)
+Vxx = InternalForces.shear(z, u, beamProperties.E, beamProperties.Iy)
 T = InternalForces.torsion(z, ϕ, beamProperties.E, beamProperties.G, beamProperties.J, beamProperties.Cw)
 
 
 #plot beam moment, shear, and torsion
 using Plots
 plot(z, Mxx)
+plot(z, Myy)
 plot(z, Vyy)
+plot(z, Vxx)
 plot(z, T)
 
 ```
