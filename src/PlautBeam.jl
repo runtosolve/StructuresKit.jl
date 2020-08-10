@@ -33,7 +33,7 @@ function defineMesh(MemberDefinitions)
 end
 
 
-function buildPropertyVector(MemberDefinitions, dm, dz, Property, PropertyOrder, PropertyType, TransitionWindow)
+function buildPropertyVector(MemberDefinitions, dm, dz, Property, PropertyOrder, PropertyType)
 
 
    z = [0; cumsum(dz)]
@@ -48,66 +48,118 @@ function buildPropertyVector(MemberDefinitions, dm, dz, Property, PropertyOrder,
       A[i] = Property[PropertyIndex][PropertyType]
    end
 
+   z, A = propertyTransition(z, A)
 
+   return z, A
 
-   A=propertyTransition(z, A, TransitionWindow)
+end
 
+#doubly curved shape function for smoothing property transitions
+function smoothstep(x)
 
+    if x<=0.0
+        S = 0.0
+    elseif (x>0.0) & (x<1.0)
+        S = 6*x^5 - 15*x^4 + 10*x^3
+    elseif x>=1.0
+        S = 1.0
+    end
 
-
-   return A
+    return S
 
 end
 
 
-function propertyTransition(z, Property, TransitionWindow)
+function propertyTransition(z, property)
 
-    PropertyChanges=diff(Property, dims=1)  #calculate jumps
+    propertydiff=diff(property, dims=1)  #calculate jumps
+    jumpindex=findall(x->x != 0.0, propertydiff)  #find jumps
 
-    JumpIndex=findall(x->x != 0.0, PropertyChanges)  #find jumps
+    if (isempty(jumpindex)==false)
 
-    if (isempty(JumpIndex)==false)
+      x=0.0:0.1:1.0  #hard code this for now, consider changing dx
+      S = smoothstep.(x)
 
-       for i=1:length(JumpIndex)  #iterate over each jump
+      #work on property jumps first
+      #split jumps and flats in a tuple, reassemble them later
+      njumps = length(jumpindex)
+      nflats = (njumps+1)
 
-           # TransitionWindow=AllTransitionWindows[i]
-             # TransitionWindow=4   #hard code this, see how it goes with users
+      jumpsegments = Array{Tuple{Vararg{Float64}}}(undef, njumps)
 
-           # if TransitionWindow > 0
+      for i = 1:njumps
 
-              JumpStart=JumpIndex[i]
-              JumpEnd=JumpStart+1
-              StartValue=Property[JumpStart]
-              EndValue=Property[JumpEnd]
+          jumpstart=jumpindex[i]
+          jumpend=jumpstart + 1
+          startvalue=property[jumpstart]
+          endvalue=property[jumpend]
 
-              if abs(StartValue) < abs(EndValue)
+          if startvalue < endvalue  #use doubly curved function to smooth
+              transprop = Tuple(startvalue .+ (endvalue - startvalue) .* S)
 
-                TransitionStart=JumpStart
-                TransitionEnd=JumpStart+TransitionWindow-1
+          elseif startvalue > endvalue
+              transprop = Tuple(reverse(endvalue .- (endvalue - startvalue) .* S))
+          end
 
-              else
+          jumpsegments[i] = transprop
 
-                TransitionStart=JumpStart-(TransitionWindow-1)
-                TransitionEnd=JumpStart
+      end
 
-              end
+      #now flat disassembly
+      flatstart = [1; jumpindex .+ 2]
+      flatend = [jumpindex .- 1; length(property)]
 
-              #y=mx+b
-              TransitionLength=z[TransitionEnd]-z[TransitionStart]
-              Slope=(EndValue-StartValue)/TransitionLength
-              Intercept=Property[TransitionStart]
+      flatsegments = Array{Tuple{Vararg{Float64}}}(undef, nflats)
 
-              for j=1:TransitionWindow-1  #iterate over transition window
-                   Property[TransitionStart+j]=Slope.*(z[TransitionStart+j]-z[TransitionStart]) .+Intercept
-              end
+      for i = 1:nflats
 
-           # end
+          flatsegments[i] = Tuple(property[flatstart[i]:flatend[i]])
 
-       end
+      end
 
-    end
+      #bring flats and jumps back together
+      allsegments = Array{Tuple{Vararg{Float64}}}(undef, nflats+njumps)
 
-    return Property
+      allsegments[1:2:(njumps+nflats)] = flatsegments
+      allsegments[2:2:(njumps+nflats)-1] = jumpsegments
+
+
+      property = collect(Iterators.flatten(allsegments))
+
+
+      #work on z coordinates now
+      jumpz = Array{Tuple{Vararg{Float64}}}(undef, njumps)
+
+      for i = 1:njumps
+
+          jumpstart=jumpindex[i]
+          jumpend=jumpstart + 1
+          startvalue=z[jumpstart]
+          endvalue=z[jumpend]
+
+          jumpz[i] = Tuple(startvalue .+ x .* (endvalue - startvalue))
+
+      end
+
+      flatz = Array{Tuple{Vararg{Float64}}}(undef, nflats)
+
+      for i = 1:nflats
+
+          flatz[i] = Tuple(z[flatstart[i]:flatend[i]])
+
+      end
+
+
+      allz = Array{Tuple{Vararg{Float64}}}(undef, nflats+njumps)
+
+      allz[1:2:(njumps+nflats)] = flatz
+      allz[2:2:(njumps+nflats)-1] = jumpz
+
+      z = collect(Iterators.flatten(allz))
+
+   end
+
+   return z, property
 
 end
 
@@ -136,7 +188,7 @@ function calculateDerivativeOperators(dz)
 
 end
 
-function calculateBoundaryStencils(BCFlag,h,NthDerivative)
+function calculateBoundaryStencils(BCFlag, h, NthDerivative)
 
    #Calculate boundary conditions stencils without ghost nodes using
    #Jorge M. Souza, "Boundary Conditions in the Finite Difference Method"
@@ -208,7 +260,7 @@ function calculateBoundaryStencils(BCFlag,h,NthDerivative)
 
 end
 
-function applyEndBoundaryConditions(A,EndBoundaryConditions,NthDerivative,dz)
+function applyEndBoundaryConditions(A, EndBoundaryConditions, NthDerivative, dz)
 
    #left end
    h = dz[1]
@@ -246,12 +298,35 @@ end
 
 
 
-function definePlautBeam(MemberDefinitions, SectionProperties, MaterialProperties, LoadLocation, SpringStiffness, EndBoundaryConditions, Supports, UniformLoad, TransitionWindow)
+function definePlautBeam(MemberDefinitions, SectionProperties, MaterialProperties, LoadLocation, SpringStiffness, EndBoundaryConditions, Supports, UniformLoad)
 
 
    dz, dm = defineMesh(MemberDefinitions)
-
    NumberOfNodes=length(dz)+1
+
+   #define property vectors
+   zIx, Ix = buildPropertyVector(MemberDefinitions, dm, dz, SectionProperties, 3, 1)
+   zIy, Iy = buildPropertyVector(MemberDefinitions, dm, dz, SectionProperties, 3, 2)
+   zIxy, Ixy = buildPropertyVector(MemberDefinitions, dm, dz, SectionProperties, 3, 3)
+   zJ, J = buildPropertyVector(MemberDefinitions, dm, dz, SectionProperties, 3, 4)
+   zCw, Cw =buildPropertyVector(MemberDefinitions, dm, dz, SectionProperties, 3, 5)
+
+   zE, E = buildPropertyVector(MemberDefinitions, dm, dz, MaterialProperties, 4, 1)
+   zν, ν = buildPropertyVector(MemberDefinitions, dm, dz, MaterialProperties, 4, 2)
+   zG, G = E./(2 .*(1 .+ ν))
+
+   zax, ax=buildPropertyVector(MemberDefinitions, dm, dz, LoadLocation, 5, 1)
+   zay, ay=buildPropertyVector(MemberDefinitions, dm, dz, LoadLocation, 5, 2)
+
+   zkx, kx=buildPropertyVector(MemberDefinitions, dm, dz, SpringStiffness, 6, 1)
+   zkϕ, kϕ=buildPropertyVector(MemberDefinitions, dm, dz, SpringStiffness, 6, 2)
+
+
+   #update z and dz with added points for smoothing property transitions
+   z = sort(unique([zIx; zIy; zIxy; zJ; zCw; zE; zν; zG; zax; zay; zkx; zkϕ]))
+   dz = diff(z)
+   NumberOfNodes=length(z)
+
 
    Azzzz,Azz = calculateDerivativeOperators(dz) #calculate derivative operators
 
@@ -262,22 +337,6 @@ function definePlautBeam(MemberDefinitions, SectionProperties, MaterialPropertie
    NthDerivative = 2
    Azz = applyEndBoundaryConditions(Azz,EndBoundaryConditions,NthDerivative,dz)
 
-   #define property vectors
-   Ix=buildPropertyVector(MemberDefinitions, dm, dz, SectionProperties, 3, 1, TransitionWindow)
-   Iy=buildPropertyVector(MemberDefinitions, dm, dz, SectionProperties, 3, 2, TransitionWindow)
-   Ixy=buildPropertyVector(MemberDefinitions, dm, dz, SectionProperties, 3, 3, TransitionWindow)
-   J=buildPropertyVector(MemberDefinitions, dm, dz, SectionProperties, 3, 4, TransitionWindow)
-   Cw=buildPropertyVector(MemberDefinitions, dm, dz, SectionProperties, 3, 5, TransitionWindow)
-
-   E = buildPropertyVector(MemberDefinitions, dm, dz, MaterialProperties, 4, 1, TransitionWindow)
-   ν = buildPropertyVector(MemberDefinitions, dm, dz, MaterialProperties, 4, 2, TransitionWindow)
-   G = E./(2 .*(1 .+ ν))
-
-   ax=buildPropertyVector(MemberDefinitions, dm, dz, LoadLocation, 5, 1, TransitionWindow)
-   ay=buildPropertyVector(MemberDefinitions, dm, dz, LoadLocation, 5, 2, TransitionWindow)
-
-   kx=buildPropertyVector(MemberDefinitions, dm, dz, SpringStiffness, 6, 1, TransitionWindow)
-   kϕ=buildPropertyVector(MemberDefinitions, dm, dz, SpringStiffness, 6, 2, TransitionWindow)
 
 
    #define load
@@ -317,7 +376,7 @@ function definePlautBeam(MemberDefinitions, SectionProperties, MaterialPropertie
    B3 = qx.*ay .+qy.*ax
 
    #reduce problem to free dof
-   z = [0; cumsum(dz)]
+   # z = [0; cumsum(dz)]
    FixedDOF = [findall(x->abs(x-Supports[i])<=10e-6,z) for i=1:length(Supports)]
    FixedDOF = VectorOfArray(FixedDOF)
    FixedDOF  = convert(Array,FixedDOF)
@@ -329,7 +388,7 @@ function definePlautBeam(MemberDefinitions, SectionProperties, MaterialPropertie
 
    B = [B1[FreeDOF]; B2[FreeDOF]; B3[FreeDOF]]
 
-   return A, B, FreeDOF, Ix, Iy, Ixy, J, Cw, E, ν, G, ax, ay, kx, kϕ
+   return A, B, FreeDOF, Ix, Iy, Ixy, J, Cw, E, ν, G, ax, ay, kx, kϕ, z
 
 end
 
@@ -344,19 +403,22 @@ function residual!(R,U,K,F)
 end
 
 
-function solve(MemberDefinitions, SectionProperties, MaterialProperties, LoadLocation, SpringStiffness, EndBoundaryConditions, Supports, UniformLoad, TransitionWindow)
+function solve(MemberDefinitions, SectionProperties, MaterialProperties, LoadLocation, SpringStiffness, EndBoundaryConditions, Supports, UniformLoad)
 
-   dz, dm = defineMesh(MemberDefinitions)
 
-   z = [0; cumsum(dz)]
 
-   NumberOfNodes=length(dz)+1
+   K, F, FreeDOF, Ix, Iy, Ixy, J, Cw, E, ν, G, ax, ay, kx, kϕ, z = definePlautBeam(MemberDefinitions, SectionProperties, MaterialProperties, LoadLocation, SpringStiffness, EndBoundaryConditions, Supports, UniformLoad)
+
+
+   # dz, dm = defineMesh(MemberDefinitions)
+
+   # z = [0; cumsum(dz)]
+
+   NumberOfNodes=length(z)
 
    u=zeros(NumberOfNodes)
    v=zeros(NumberOfNodes)
    ϕ=zeros(NumberOfNodes)
-
-   K, F, FreeDOF, Ix, Iy, Ixy, J, Cw, E, ν, G, ax, ay, kx, kϕ = definePlautBeam(MemberDefinitions, SectionProperties, MaterialProperties, LoadLocation, SpringStiffness, EndBoundaryConditions, Supports, UniformLoad, TransitionWindow)
 
    Uguess=K\F
 
