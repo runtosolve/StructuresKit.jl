@@ -40,19 +40,19 @@ purlinSpacing=5*12
 #member information
 #L dL SectionProperties MaterialProperties LoadLocation BracingProperties CrossSectionDimensions
  memberDefinitions = [(1*12,1.0,      1,1,1,1,1),
-                      (0.5*12,6.0,    1,1,1,1,1),
-                      (22.0*12,12.0,  1,1,1,1,1),
-                      (2.5*12,6.0,    3,1,1,1,3),
-                      (3.5*12,6.0,    3,1,1,1,3),
-                      (20.0*12,12.0,  2,1,1,1,2),
-                      (0.5*12,6.0,    2,1,1,1,2),
+                      (0.5*12,1.0,    1,1,1,1,1),
+                      (22.0*12,3.0,  1,1,1,1,1),
+                      (2.5*12,3.0,    3,1,1,1,3),
+                      (3.5*12,3.0,    3,1,1,1,3),
+                      (20.0*12,3.0,  2,1,1,1,2),
+                      (0.5*12,1.0,    2,1,1,1,2),
                       (2*12,3.0,      4,1,1,1,4),
-                      (0.5*12,6.0,    2,1,1,1,2),
-                      (20.0*12,12.0,  2,1,1,1,2),
-                      (3.5*12,6.0,    3,1,1,1,3),
-                      (2.5*12,6.0,    3,1,1,1,3),
-                      (22.0*12,12.0,  1,1,1,1,1),
-                      (0.5*12,6.0,    1,1,1,1,1),
+                      (0.5*12,1.0,    2,1,1,1,2),
+                      (20.0*12,3.0,  2,1,1,1,2),
+                      (3.5*12,3.0,    3,1,1,1,3),
+                      (2.5*12,3.0,    3,1,1,1,3),
+                      (22.0*12,3.0,  1,1,1,1,1),
+                      (0.5*12,1.0,    1,1,1,1,1),
                       (1*12,1.0,      1,1,1,1,1)]
 
 
@@ -82,10 +82,21 @@ uniformLoad=(qx,qy)
 z, u, v, ϕ, beamProperties = PlautBeam.solve(memberDefinitions, sectionProperties, materialProperties, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad)
 
 
+plot(z, v, markershape = :circle)
+plot!(z, beamProperties.dm, markershape = :circle)
+Mxx = InternalForces.moment(z, beamProperties.dm, -v, beamProperties.E, beamProperties.Ix)
+Myy = InternalForces.moment(z, beamProperties.dm, -u, beamProperties.E, beamProperties.Iy)
+Vyy = InternalForces.shear(z, beamProperties.dm, -v, beamProperties.E, beamProperties.Ix)
+Vxx = InternalForces.shear(z, beamProperties.dm, -u, beamProperties.E, beamProperties.Iy)
+T = InternalForces.torsion(z, beamProperties.dm, ϕ, beamProperties.E, beamProperties.G, beamProperties.J, beamProperties.Cw)
+B = InternalForces.bimoment(z, beamProperties.dm, ϕ, beamProperties.E, beamProperties.Cw)
 
+plot(z, B)
+plot!(z, beamProperties.dm, markershape = :circle)
+xlims!(270, 310)
 
-using Plots
-plot(z, v)
+using Plotsz
+
 plot(z, beamProperties.Ix, markershape = :circle)
 
 
@@ -97,7 +108,7 @@ plot(z, spl(z))
 plot!(z, beamProperties.Ix)
 
 
-Mxx = InternalForces.moment(z, -v, beamProperties.E, beamProperties.Ix)
+
 
 plot(z, Mxx)
 

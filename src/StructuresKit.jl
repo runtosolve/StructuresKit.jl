@@ -1,5 +1,9 @@
 module StructuresKit
 
+export BeamMesh
+include("BeamMesh.jl")
+using .BeamMesh
+
 export PlautBeam
 include("PlautBeam.jl")
 using .PlautBeam

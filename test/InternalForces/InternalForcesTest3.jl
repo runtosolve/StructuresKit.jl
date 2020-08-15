@@ -33,8 +33,8 @@ uniformLoad = (0.0, 5.0/1000)
 z, u, v, ϕ, beamProperties = PlautBeam.solve(memberDefinitions, sectionProperties, materialProperties, loadLocation, springStiffness, endBoundaryConditions, supports, uniformLoad)
 
 
-Mxx = InternalForces.moment(z, -v, beamProperties.E, beamProperties.Ix)
-Vyy = InternalForces.shear(z, -v, beamProperties.E, beamProperties.Ix)
+Mxx = InternalForces.moment(z, beamProperties.dm, -v, beamProperties.E, beamProperties.Ix)
+Vyy = InternalForces.shear(z, beamProperties.dm, -v, beamProperties.E, beamProperties.Ix)
 
 
 maxMxx = minimum(Mxx)

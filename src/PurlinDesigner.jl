@@ -5,104 +5,60 @@ using ..AISIS10016
 using ..AISIS10024
 using ..PlautBeam
 using ..InternalForces
+using ..BeamMesh
 
-export findPurlinLineStrength
-
-#mesh the purlin line
-function defineMesh(memberDefinitions)
-
-   for i in eachindex(memberDefinitions)
-
-      L = memberDefinitions[i][1]
-      dL = memberDefinitions[i][2]
-      numSegments = floor(Int64, L/dL)
-
-      if i == 1
-         dz = ones(numSegments)*dL   #member discretization
-         dm = ones(Int8,numSegments+1)*i    #member properties at each node
-      else
-         dz = [dz; ones(numSegments)*dL]
-         dm = [dm; ones(Int8, numSegments)*i]
-      end
-
-   end
-
-   dz = dz   #need this to get dz out of function
-   dm = dm
-
-   return dz, dm
-
-end
-
-#define properties along a purlin line
-function buildPropertyVector(memberDefinitions, dm, dz, property, propertyOrder, propertyType)
+export lineStrength
 
 
-   z = [0; cumsum(dz)]
-
-   numberOfNodes = length(dm)
-
-   propvector = zeros(numberOfNodes)
-
-   for i=1:numberOfNodes
-
-      propertyIndex = memberDefinitions[dm[i]][propertyOrder]  #maps properties to each member along beam
-      propvector[i] = property[propertyIndex][propertyType]
-   end
-
-   return propvector
-
-end
-
-#calculated expected strengths along a purlin line
-function calculateExpectedStrengths(ASDorLRFD, dz, dm, memberDefinitions, sectionProperties, crossSectionDimensions, materialProperties, loadLocation, bracingProperties, roofSlope)
+#calculated section strengths along a purlin line
+function sectionStrengths(ASDorLRFD, dz, dm, memberDefinitions, sectionProperties, crossSectionDimensions, materialProperties, loadLocation, bracingProperties, roofSlope)
 
     numberOfNodes = length(dz)+1
 
     #calculate strength limit state capacities
 
     #strong axis flexure, local-global interaction
-    Fy = buildPropertyVector(memberDefinitions, dm, dz, materialProperties, 4, 3)
-    Ixx = buildPropertyVector(memberDefinitions, dm, dz, sectionProperties, 3, 1)
-    ho = buildPropertyVector(memberDefinitions, dm, dz, crossSectionDimensions, 7, 2)
+    Fy = BeamMesh.propvector(memberDefinitions, dm, dz, materialProperties, 4, 3)
+    Ixx = BeamMesh.propvector(memberDefinitions, dm, dz, sectionProperties, 3, 1)
+    ho = BeamMesh.propvector(memberDefinitions, dm, dz, crossSectionDimensions, 7, 2)
     ycy = ho./2  #distance from neutral axis to outer fiber
     Sxx = Ixx./ycy
     Myxx = Fy.*Sxx
     Mnexx = Myxx
-    Mcrℓxx = buildPropertyVector(memberDefinitions, dm, dz, sectionProperties, 3, 6)
+    Mcrℓxx = BeamMesh.propvector(memberDefinitions, dm, dz, sectionProperties, 3, 6)
     eMnℓxx =  AISIS10016.f321.(Mnexx, Mcrℓxx, ASDorLRFD)
 
     #weak axis flexure, local-global interaction
-    Iyy = buildPropertyVector(memberDefinitions, dm, dz, sectionProperties, 3, 2)
+    Iyy = BeamMesh.propvector(memberDefinitions, dm, dz, sectionProperties, 3, 2)
 
-    t = buildPropertyVector(memberDefinitions, dm, dz, crossSectionDimensions, 7, 1)
-    b = buildPropertyVector(memberDefinitions, dm, dz, crossSectionDimensions, 3, 3)
-    d = buildPropertyVector(memberDefinitions, dm, dz, crossSectionDimensions, 3, 4)
-    θc = buildPropertyVector(memberDefinitions, dm, dz, crossSectionDimensions, 3, 5)
+    t = BeamMesh.propvector(memberDefinitions, dm, dz, crossSectionDimensions, 7, 1)
+    b = BeamMesh.propvector(memberDefinitions, dm, dz, crossSectionDimensions, 3, 3)
+    d = BeamMesh.propvector(memberDefinitions, dm, dz, crossSectionDimensions, 3, 4)
+    θc = BeamMesh.propvector(memberDefinitions, dm, dz, crossSectionDimensions, 3, 5)
 
     #distance from neutral axis to outer fiber
     ycx = b.+d.*cos.(deg2rad.(θc)) .-t./2
     Syy = Iyy./ycx
     Myyy = Fy.*Syy
     Mneyy = Myyy
-    Mcrℓyy = buildPropertyVector(memberDefinitions, dm, dz, sectionProperties, 3, 7)
+    Mcrℓyy = BeamMesh.propvector(memberDefinitions, dm, dz, sectionProperties, 3, 7)
     eMnℓyy = AISIS10016.f321.(Mneyy, Mcrℓyy, ASDorLRFD)
 
     #torsion
-    Cw = buildPropertyVector(memberDefinitions, dm, dz, sectionProperties, 3, 5)
-    Fy = buildPropertyVector(memberDefinitions, dm, dz, materialProperties, 4, 3)
-    Wn = buildPropertyVector(memberDefinitions, dm, dz, sectionProperties, 3, 6)
+    Cw = BeamMesh.propvector(memberDefinitions, dm, dz, sectionProperties, 3, 5)
+    Fy = BeamMesh.propvector(memberDefinitions, dm, dz, materialProperties, 4, 3)
+    Wn = BeamMesh.propvector(memberDefinitions, dm, dz, sectionProperties, 3, 6)
     eBn = AISIS10024.h411.(Cw, Fy, Wn, ASDorLRFD)
 
     #distortional buckling
-    CorZ = buildPropertyVector(memberDefinitions, dm, dz, crossSectionDimensions, 3, 6)
+    CorZ = BeamMesh.propvector(memberDefinitions, dm, dz, crossSectionDimensions, 3, 6)
     CorZ = trunc.(Int, CorZ)
-    E = buildPropertyVector(memberDefinitions, dm, dz, materialProperties, 4, 1)
-    μ = buildPropertyVector(memberDefinitions, dm, dz, materialProperties, 4, 2)
+    E = BeamMesh.propvector(memberDefinitions, dm, dz, materialProperties, 4, 1)
+    μ = BeamMesh.propvector(memberDefinitions, dm, dz, materialProperties, 4, 2)
     G= E./(2 .*(1 .+ μ))
     f1=1.0*ones(length(numberOfNodes))
     f2=-1.0*ones(length(numberOfNodes))
-    Lm = BuildPropertyVector(memberDefinitions, dm, dz, bracingProperties, 6, 3)
+    Lm = BeamMesh.propvector(memberDefinitions, dm, dz, bracingProperties, 6, 3)
 
     #define moment gradient factor
     #assume it is 1
@@ -124,8 +80,8 @@ function calculateExpectedStrengths(ASDorLRFD, dz, dm, memberDefinitions, sectio
 
 
     #Web shear strength
-    a = buildPropertyVector(memberDefinitions, dm, dz, bracingProperties, 6, 4)
-    h = buildPropertyVector(memberDefinitions, dm, dz, crossSectionDimensions, 7, 7)
+    a = BeamMesh.propvector(memberDefinitions, dm, dz, bracingProperties, 6, 4)
+    h = BeamMesh.propvector(memberDefinitions, dm, dz, crossSectionDimensions, 7, 7)
     kv  = AISIS10016.g233.(a, h)
     Fcr = AISIS10016.g232.(E, μ, kv, h, t)
     Vcr = AISIS10016.g231.(h, t, Fcr)
@@ -195,14 +151,15 @@ function biaxialBendingDemandToCapacity(Mxx, Myy, eMnℓxx, eMnℓyy)
 
 end
 
-function calculatePurlinDemandToCapacity(memberDefinitions, sectionProperties, materialProperties, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad, eMnℓxx, eMnℓyy, eBn, eMnd, eVn)
+#purlin line demand to capacity
+function lineDC(memberDefinitions, sectionProperties, materialProperties, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad, eMnℓxx, eMnℓyy, eBn, eMnd, eVn)
 
     z, u, v, ϕ, beamProperties = PlautBeam.solve(memberDefinitions, sectionProperties, materialProperties, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad)
 
-    Mxx = InternalForces.moment(z, -v, beamProperties.E, beamProperties.Ix)
-    Myy = InternalForces.moment(z, -u, beamProperties.E, beamProperties.Iy)
-    Vyy = InternalForces.shear(z, -v, beamProperties.E, beamProperties.Ix)
-    B = InternalForces.bimoment(z, ϕ, beamProperties.E, beamProperties.Cw)
+    Mxx = InternalForces.moment(z, beamProperties.dm, -v, beamProperties.E, beamProperties.Ix)
+    Myy = InternalForces.moment(z, beamProperties.dm, -u, beamProperties.E, beamProperties.Iy)
+    Vyy = InternalForces.shear(z, beamProperties.dm, -v, beamProperties.E, beamProperties.Ix)
+    B = InternalForces.bimoment(z, beamProperties.dm, ϕ, beamProperties.E, beamProperties.Cw)
 
     BTActionM1, BTActionM2, BTActionB, BTTotalInteraction, BTDemandToCapacity = bendingTorsionDemandToCapacity(Mxx, Myy, B, eMnℓxx, eMnℓyy, eBn)
     distDemandToCapacity = distortionalDemandToCapacity(Mxx,eMnd)
@@ -214,7 +171,8 @@ function calculatePurlinDemandToCapacity(memberDefinitions, sectionProperties, m
 
 end
 
-function findExpectedPurlinStrength(q, eps, residual, demandToCapacity, memberDefinitions, sectionProperties, materialProperties, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad, eMnℓxx, eMnℓyy, eBn, eMnd, eVn, loadAngle)
+#purlin line load that causes failure
+function rootfinder(q, eps, residual, demandToCapacity, memberDefinitions, sectionProperties, materialProperties, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad, eMnℓxx, eMnℓyy, eBn, eMnd, eVn, loadAngle)
 
     #use bisection method of rootfinding to solve for purlin strength
 
@@ -229,7 +187,7 @@ function findExpectedPurlinStrength(q, eps, residual, demandToCapacity, memberDe
         qy = q*cos(deg2rad(loadAngle))
         uniformLoad=(qx,qy)
 
-        demandToCapacity=calculatePurlinDemandToCapacity(memberDefinitions, sectionProperties, materialProperties, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad, eMnℓxx, eMnℓyy, eBn, eMnd, eVn)
+        demandToCapacity=lineDC(memberDefinitions, sectionProperties, materialProperties, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad, eMnℓxx, eMnℓyy, eBn, eMnd, eVn)
 
         residual=1.0 - abs(demandToCapacity)
 
@@ -243,12 +201,12 @@ function findExpectedPurlinStrength(q, eps, residual, demandToCapacity, memberDe
 
 end
 
-function findPurlinLineStrength(ASDorLRFD, gravityOrUplift, memberDefinitions, sectionProperties, crossSectionDimensions, materialProperties, loadLocation, bracingProperties, roofSlope, endBoundaryConditions, supports)
+function lineStrength(ASDorLRFD, gravityOrUplift, memberDefinitions, sectionProperties, crossSectionDimensions, materialProperties, loadLocation, bracingProperties, roofSlope, endBoundaryConditions, supports)
 
-    dz, dm = defineMesh(memberDefinitions)
+    dz, z, dm = BeamMesh.define(memberDefinitions)
 
     #calculate expected capacities
-    eMnℓxx, eMnℓyy, eBn, eMnd,  eVn  = calculateExpectedStrengths(ASDorLRFD, dz, dm, memberDefinitions, sectionProperties, crossSectionDimensions, materialProperties, loadLocation, bracingProperties, roofSlope)
+    eMnℓxx, eMnℓyy, eBn, eMnd,  eVn  = sectionStrengths(ASDorLRFD, dz, dm, memberDefinitions, sectionProperties, crossSectionDimensions, materialProperties, loadLocation, bracingProperties, roofSlope)
 
     #use rootfinding to solve for expected strength
 
@@ -265,26 +223,28 @@ function findPurlinLineStrength(ASDorLRFD, gravityOrUplift, memberDefinitions, s
     qx = -q*sin(deg2rad(loadAngle))
     qy = q*cos(deg2rad(loadAngle))
     uniformLoad = (qx,qy)
-    demandToCapacity=calculatePurlinDemandToCapacity(memberDefinitions, sectionProperties, materialProperties, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad, eMnℓxx, eMnℓyy, eBn, eMnd, eVn)
+    demandToCapacity = lineDC(memberDefinitions, sectionProperties, materialProperties, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad, eMnℓxx, eMnℓyy, eBn, eMnd, eVn)
 
     #initialize residual for rootfinding
     residual=abs(1.0-demandToCapacity)
     eps=0.01  #residual tolerance, hard coded for now
 
     #this spits out the expected failure load
-    q = findExpectedPurlinStrength(q, eps, residual, demandToCapacity, memberDefinitions, sectionProperties, materialProperties, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad, eMnℓxx, eMnℓyy, eBn, eMnd, eVn, loadAngle)
+    q = rootfinder(q, eps, residual, demandToCapacity, memberDefinitions, sectionProperties, materialProperties, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad, eMnℓxx, eMnℓyy, eBn, eMnd, eVn, loadAngle)
     expectedPurlinLineStrength = q
 
     qx = -q*sin(deg2rad(loadAngle))
     qy = q*cos(deg2rad(loadAngle))
     uniformLoad = (qx,qy)
 
+    #calculate all the final properties and deformations for the purlin line, at failure
+
     z, u, v, ϕ, beamProperties = PlautBeam.solve(memberDefinitions, sectionProperties, materialProperties, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad)
 
-    Mxx = InternalForces.moment(z, -v, beamProperties.E, beamProperties.Ix)
-    Myy = InternalForces.moment(z, -u, beamProperties.E, beamProperties.Iy)
-    Vyy = InternalForces.shear(z, -v, beamProperties.E, beamProperties.Ix)
-    B = InternalForces.bimoment(z, ϕ, beamProperties.E, beamProperties.Cw)
+    Mxx = InternalForces.moment(z, beamProperties.dm, -v, beamProperties.E, beamProperties.Ix)
+    Myy = InternalForces.moment(z, beamProperties.dm, -u, beamProperties.E, beamProperties.Iy)
+    Vyy = InternalForces.shear(z, beamProperties.dm, -v, beamProperties.E, beamProperties.Ix)
+    B = InternalForces.bimoment(z, beamProperties.dm, ϕ, beamProperties.E, beamProperties.Cw)
 
     BTActionM1, BTActionM2, BTActionB, BTTotalInteraction, BTDemandToCapacity = bendingTorsionDemandToCapacity(Mxx, Myy, B, eMnℓxx, eMnℓyy, eBn)
     distDemandToCapacity = distortionalDemandToCapacity(Mxx,eMnd)
@@ -292,7 +252,7 @@ function findPurlinLineStrength(ASDorLRFD, gravityOrUplift, memberDefinitions, s
     BBActionP, BBActionM1, BBActionM2, BBTotalInteraction, BBDemandToCapacity = biaxialBendingDemandToCapacity(Mxx, Myy, eMnℓxx, eMnℓyy)
     demandToCapacity=maximum([BTDemandToCapacity; distDemandToCapacity; MVDemandToCapacity; BBDemandToCapacity])
 
-    return expectedPurlinLineStrength, z, eMnℓxx, eMnℓyy, eBn, eMnd, eVn, Mxx, Myy, Vxx, Vyy, M1, M2, T, B, BTActionM1, BTActionM2, BTActionB, BTTotalInteraction, BTDemandToCapacity, distDemandToCapacity, MVDemandToCapacity, BBActionP, BBActionM1, BBActionM2, BBTotalInteraction, BBDemandToCapacity, demandToCapacity
+    return expectedPurlinLineStrength, z, eMnℓxx, eMnℓyy, eBn, eMnd, eVn, Mxx, Myy, Vyy, T, B, BTActionM1, BTActionM2, BTActionB, BTTotalInteraction, BTDemandToCapacity, distDemandToCapacity, MVDemandToCapacity, BBActionP, BBActionM1, BBActionM2, BBTotalInteraction, BBDemandToCapacity, demandToCapacity
 
 end
 

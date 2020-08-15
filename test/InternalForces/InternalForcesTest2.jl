@@ -33,7 +33,7 @@ uniformLoad = (0.0, 5.0/1000)
 
 z, u, v, ϕ, beamProperties = PlautBeam.solve(memberDefinitions, sectionProperties, materialProperties, loadLocation, springStiffness, endBoundaryConditions, supports, uniformLoad)
 
-T = InternalForces.torsion(z, ϕ, beamProperties.E, beamProperties.G, beamProperties.J, beamProperties.Cw)
+T = InternalForces.torsion(z, beamProperties.dm, ϕ, beamProperties.E, beamProperties.G, beamProperties.J, beamProperties.Cw)
 
 maxT = maximum(T)
 maxT_theory = (uniformLoad[2] * beamProperties.ax[1] * z[end])/2

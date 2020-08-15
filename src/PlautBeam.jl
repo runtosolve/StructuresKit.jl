@@ -4,175 +4,12 @@ using DiffEqOperators: CenteredDifference
 using LinearAlgebra
 using RecursiveArrayTools: VectorOfArray
 using NLsolve
-# using Dierckx
+
+using ..BeamMesh
+
 
 export solve
 
-function defineMesh(memberDefinitions)
-
-   #mesh along the length
-   for i in eachindex(memberDefinitions)
-
-      L = memberDefinitions[i][1]
-      dL = memberDefinitions[i][2]
-      numSegments = floor(Int64, L/dL)
-
-      if i == 1
-         dz = ones(numSegments)*dL  #member discretization
-      else
-         dz = [dz; ones(numSegments)*dL]
-      end
-
-   end
-   dz = dz
-   return dz
-
-end
-
-function assignMemberProperties(memberDefinitions)
-
-   #define properties to use at each node
-
-   if iseven(length(memberDefinitions))
-
-      for i in eachindex(memberDefinitions)
-
-         L = memberDefinitions[i][1]
-         dL = memberDefinitions[i][2]
-         numSegments = floor(Int64, L/dL)
-         numNodes = numSegments+1   #number of nodes in a segment
-
-         if i == 1
-            dm = ones(Int8, numNodes-1)*i
-         elseif i == length(memberDefinitions)
-            dm = [dm; ones(Int8, numNodes)*i]
-         else
-            dm = [dm; ones(Int8, numNodes-1)*i]
-         end
-
-      end
-
-   end
-
-   if isodd(length(memberDefinitions))
-
-      middleSegment = (length(memberDefinitions) - 1)/2 + 1
-
-      for i in eachindex(memberDefinitions)
-
-         L = memberDefinitions[i][1]
-         dL = memberDefinitions[i][2]
-         numSegments = floor(Int64, L/dL)
-         numNodes = numSegments+1   #number of nodes in a segment
-
-         if i == 1
-            dm = ones(Int8, numNodes-1)*i
-         elseif i < middleSegment
-            dm = [dm; ones(Int8, numNodes-1)*i]
-         elseif i == middleSegment
-            dm = [dm; ones(Int8, numNodes)*i]
-         elseif i > middleSegment
-            dm = [dm; ones(Int8, numNodes-1)*i]
-         end
-
-      end
-
-   end
-
-   dm = dm
-
-   return dm
-
-end
-
-
-function buildPropertyVector(MemberDefinitions, dm, dz, Property, PropertyOrder, PropertyType)
-
-
-   z = [0; cumsum(dz)]
-
-   NumberOfNodes = length(dm)
-
-   A = zeros(NumberOfNodes)
-
-   for i=1:NumberOfNodes
-
-      PropertyIndex = MemberDefinitions[dm[i]][PropertyOrder]  #maps properties to each member along beam
-      A[i] = Property[PropertyIndex][PropertyType]
-   end
-
-   # A = propertyTransition(z, A, dm)
-
-   return A
-
-end
-
-
-# function propertyTransition(z, Property, dm)
-#
-#     PropertyChanges=diff(Property, dims=1)  #calculate jumps
-#
-#     JumpIndex=findall(x->x != 0.0, PropertyChanges)  #find jumps
-#
-#     if (isempty(JumpIndex)==false)
-#
-#        for i=1:length(JumpIndex)  #iterate over each jump
-#
-#            # TransitionWindow=AllTransitionWindows[i]
-#              TransitionWindow=2   #hard code this, see how it goes with users
-#
-#            # if TransitionWindow > 0
-#
-#               JumpStart=JumpIndex[i]
-#               JumpEnd=JumpStart+1
-#               StartValue=Property[JumpStart]
-#               EndValue=Property[JumpEnd]
-#
-#               if abs(StartValue) < abs(EndValue)
-#
-#                 TransitionStart=JumpStart
-#                 TransitionEnd=JumpStart+TransitionWindow-1
-#
-#               else
-#
-#                 TransitionStart=JumpStart-(TransitionWindow-1)
-#                 TransitionEnd=JumpStart
-#
-#               end
-#
-#               #y=mx+b
-#               TransitionLength=z[TransitionEnd]-z[TransitionStart]
-#               Slope=(EndValue-StartValue)/TransitionLength
-#               Intercept=Property[TransitionStart]
-#
-#               for j=1:TransitionWindow-1  #iterate over transition window
-#                    Property[TransitionStart+j]=Slope.*(z[TransitionStart+j]-z[TransitionStart]) .+Intercept
-#               end
-#
-#            # end
-#
-#        end
-#
-#     end
-#
-#
-#     # #update dm vector with new transitions
-#     # PropertyChanges=diff(Property, dims=1)  #calculate jumps again
-#     # JumpIndex=findall(x->x != 0.0, PropertyChanges)  #find jumps
-#     #
-#     # dmdiff = diff(dm)
-#     # dmjumps=findall(x->x != 0.0, dmdiff)  #find jumps
-#     #
-#     # for i = 1:length(JumpIndex)
-#     #   if JumpIndex[i] != dmjumps[i]
-#     #      # dmjumps[i] = JumpIndex[i]
-#     #      dm[JumpIndex[i]] = dm[JumpIndex[i]] + 1
-#     #   end
-#     # end
-#
-#     return Property
-#
-# end
 
 
 function calculateDerivativeOperators(dz)
@@ -307,36 +144,31 @@ function applyEndBoundaryConditions(A, EndBoundaryConditions, NthDerivative, dz)
 
 end
 
-function splineproperty(zA, A, z)
-   spl = Spline1D(zA, A)
-   A = spl(z)
-   return A
-end
 
-function definePlautBeam(MemberDefinitions, SectionProperties, MaterialProperties, LoadLocation, SpringStiffness, EndBoundaryConditions, Supports, UniformLoad)
+function define(MemberDefinitions, SectionProperties, MaterialProperties, LoadLocation, SpringStiffness, EndBoundaryConditions, Supports, UniformLoad)
 
 
-   dz = defineMesh(MemberDefinitions)
-   dm = assignMemberProperties(MemberDefinitions)
+   dz, z, dm = BeamMesh.define(MemberDefinitions)
+
    NumberOfNodes=length(dz)+1
 
 
    #define property vectors
-   Ix = buildPropertyVector(MemberDefinitions, dm, dz, SectionProperties, 3, 1)
-   Iy = buildPropertyVector(MemberDefinitions, dm, dz, SectionProperties, 3, 2)
-   Ixy = buildPropertyVector(MemberDefinitions, dm, dz, SectionProperties, 3, 3)
-   J = buildPropertyVector(MemberDefinitions, dm, dz, SectionProperties, 3, 4)
-   Cw =buildPropertyVector(MemberDefinitions, dm, dz, SectionProperties, 3, 5)
+   Ix = BeamMesh.propvector(MemberDefinitions, dm, dz, SectionProperties, 3, 1)
+   Iy = BeamMesh.propvector(MemberDefinitions, dm, dz, SectionProperties, 3, 2)
+   Ixy = BeamMesh.propvector(MemberDefinitions, dm, dz, SectionProperties, 3, 3)
+   J = BeamMesh.propvector(MemberDefinitions, dm, dz, SectionProperties, 3, 4)
+   Cw = BeamMesh.propvector(MemberDefinitions, dm, dz, SectionProperties, 3, 5)
 
-   E = buildPropertyVector(MemberDefinitions, dm, dz, MaterialProperties, 4, 1)
-   ν = buildPropertyVector(MemberDefinitions, dm, dz, MaterialProperties, 4, 2)
+   E = BeamMesh.propvector(MemberDefinitions, dm, dz, MaterialProperties, 4, 1)
+   ν = BeamMesh.propvector(MemberDefinitions, dm, dz, MaterialProperties, 4, 2)
    G = E./(2 .*(1 .+ ν))
 
-   ax = buildPropertyVector(MemberDefinitions, dm, dz, LoadLocation, 5, 1)
-   ay = buildPropertyVector(MemberDefinitions, dm, dz, LoadLocation, 5, 2)
+   ax = BeamMesh.propvector(MemberDefinitions, dm, dz, LoadLocation, 5, 1)
+   ay = BeamMesh.propvector(MemberDefinitions, dm, dz, LoadLocation, 5, 2)
 
-   kx = buildPropertyVector(MemberDefinitions, dm, dz, SpringStiffness, 6, 1)
-   kϕ = buildPropertyVector(MemberDefinitions, dm, dz, SpringStiffness, 6, 2)
+   kx = BeamMesh.propvector(MemberDefinitions, dm, dz, SpringStiffness, 6, 1)
+   kϕ = BeamMesh.propvector(MemberDefinitions, dm, dz, SpringStiffness, 6, 2)
 
 
    Azzzz,Azz = calculateDerivativeOperators(dz) #calculate derivative operators
@@ -385,7 +217,6 @@ function definePlautBeam(MemberDefinitions, SectionProperties, MaterialPropertie
    B3 = qx.*ay .+qy.*ax
 
    #reduce problem to free dof
-   z = [0; cumsum(dz)]
    FixedDOF = [findall(x->abs(x-Supports[i])<=10e-6,z) for i=1:length(Supports)]
    FixedDOF = VectorOfArray(FixedDOF)
    FixedDOF  = convert(Array,FixedDOF)
@@ -414,9 +245,7 @@ end
 
 function solve(MemberDefinitions, SectionProperties, MaterialProperties, LoadLocation, SpringStiffness, EndBoundaryConditions, Supports, UniformLoad)
 
-
-
-   K, F, FreeDOF, Ix, Iy, Ixy, J, Cw, E, ν, G, ax, ay, kx, kϕ, z, dm = definePlautBeam(MemberDefinitions, SectionProperties, MaterialProperties, LoadLocation, SpringStiffness, EndBoundaryConditions, Supports, UniformLoad)
+   K, F, FreeDOF, Ix, Iy, Ixy, J, Cw, E, ν, G, ax, ay, kx, kϕ, z, dm = define(MemberDefinitions, SectionProperties, MaterialProperties, LoadLocation, SpringStiffness, EndBoundaryConditions, Supports, UniformLoad)
 
 
    NumberOfNodes=length(z)
@@ -425,17 +254,17 @@ function solve(MemberDefinitions, SectionProperties, MaterialProperties, LoadLoc
    v=zeros(NumberOfNodes)
    ϕ=zeros(NumberOfNodes)
 
-   Uguess=K\F
+   Uguess = K \ F
 
-   solution=nlsolve((R,U) ->residual!(R,U,K,F),Uguess)
+   solution = nlsolve((R,U) ->residual!(R,U,K,F),Uguess)
 
-   u[FreeDOF]=solution.zero[1:length(FreeDOF)]
-   v[FreeDOF]=solution.zero[length(FreeDOF)+1:2*length(FreeDOF)]
-   ϕ[FreeDOF]=solution.zero[2*length(FreeDOF)+1:3*length(FreeDOF)]
+   u[FreeDOF] = solution.zero[1:length(FreeDOF)]
+   v[FreeDOF] = solution.zero[length(FreeDOF)+1:2*length(FreeDOF)]
+   ϕ[FreeDOF] = solution.zero[2*length(FreeDOF)+1:3*length(FreeDOF)]
 
-   BeamProperties = NamedTuple{(:dm, :Ix, :Iy, :Ixy, :J, :Cw, :E, :ν, :G, :ax, :ay, :kx, :kϕ)}((dm, Ix, Iy, Ixy, J, Cw, E, ν, G, ax, ay, kx, kϕ))
+   properties = NamedTuple{(:dm, :Ix, :Iy, :Ixy, :J, :Cw, :E, :ν, :G, :ax, :ay, :kx, :kϕ)}((dm, Ix, Iy, Ixy, J, Cw, E, ν, G, ax, ay, kx, kϕ))
 
-   return z, u, v, ϕ, BeamProperties
+   return z, u, v, ϕ, properties
 
 end
 
