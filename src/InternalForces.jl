@@ -65,7 +65,54 @@ function calculate_weights(order::Int, x0::T, x::AbstractVector) where T<:Real
     return _C
 end
 
-function calculateDerivativeOperators(z)
+
+
+function operatorjumps(z, dm, A, order)
+
+    diffdm = diff(dm)
+    jumps = findall(x-> x > 0.0, diffdm)
+
+
+    for i in eachindex(jumps)
+
+        #left pointing single sided stencil, left of jump
+        x = z[jumps[i]-4-1:jumps[i]-1]
+        x0 = z[jumps[i]-1]
+        coeffs=calculate_weights(order, x0, x)
+        A[jumps[i]-1, 1:end] .= 0.0
+        A[jumps[i]-1, jumps[i]-4-1:jumps[i]-1] = coeffs
+
+        #left pointing single sided stencil, at jump
+        x = z[jumps[i]-4:jumps[i]]
+        x0 = z[jumps[i]]
+        coeffs=calculate_weights(order, x0, x)
+        A[jumps[i], 1:end] .= 0.0
+        A[jumps[i], jumps[i]-4:jumps[i]] = coeffs
+
+        # right pointing single sided stencil, right of jump
+        x = z[jumps[i]+1:jumps[i]+1 + 4]
+        x0 = z[jumps[i]+1]
+        coeffs=calculate_weights(order, x0, x)
+        A[jumps[i]+1, 1:end] .= 0.0
+        A[jumps[i]+1, jumps[i]+1:jumps[i]+4+1] = coeffs
+
+        # right pointing single sided stencil, two right of jump
+        x = z[jumps[i]+2:jumps[i]+2 + 4]
+        x0 = z[jumps[i]+2]
+        coeffs=calculate_weights(order, x0, x)
+        A[jumps[i]+2, 1:end] .= 0.0
+        A[jumps[i]+2, jumps[i]+2:jumps[i]+4+2] = coeffs
+
+
+    end
+
+    return A
+
+end
+
+
+
+function calculateDerivativeOperators(z, dm)
 
     NumberOfNodes=length(z)
     dz=diff(z)
@@ -107,6 +154,9 @@ function calculateDerivativeOperators(z)
     coeffs=calculate_weights(order, x0, x)
     Az[end,end-4:end]=coeffs
 
+    #place singled sided stencils at discontinuities
+    Az = operatorjumps(z, dm, Az, order)
+
     #second derivative
 
     NthDerivative = 2
@@ -140,6 +190,9 @@ function calculateDerivativeOperators(z)
     x0=x[end]
     coeffs=calculate_weights(order, x0, x)
     Azz[end,end-4:end]=coeffs
+
+    #place singled sided stencils at discontinuities
+    Azz = operatorjumps(z, dm, Azz, order)
 
     #third derivative
 
@@ -175,14 +228,17 @@ function calculateDerivativeOperators(z)
     coeffs=calculate_weights(order, x0, x)
     Azzz[end,end-4:end]=coeffs
 
+    #place singled sided stencils at discontinuities
+    Azzz = operatorjumps(z, dm, Azzz, order)
+
     return Az, Azz, Azzz
 
 end
 
 
-function moment(z, Δ, E, I)
+function moment(z, dm, Δ, E, I)
 
-    Az, Azz, Azzz = calculateDerivativeOperators(z)
+    Az, Azz, Azzz = calculateDerivativeOperators(z, dm)
 
     M = E .* I .* Azz * Δ
 
@@ -190,9 +246,9 @@ function moment(z, Δ, E, I)
 
 end
 
-function shear(z, Δ, E, I)
+function shear(z, dm, Δ, E, I)
 
-    Az, Azz, Azzz = calculateDerivativeOperators(z)
+    Az, Azz, Azzz = calculateDerivativeOperators(z, dm)
 
     V = E .* I .* Azzz * Δ
 
@@ -200,9 +256,9 @@ function shear(z, Δ, E, I)
 
 end
 
-function torsion(z, ϕ, E, G, J, Cw)
+function torsion(z, dm, ϕ, E, G, J, Cw)
 
-    Az, Azz, Azzz = calculateDerivativeOperators(z)
+    Az, Azz, Azzz = calculateDerivativeOperators(z, dm)
 
     #T=GJ*dϕ/dz - ECw*dϕ3/dz3
     T=G.*J.*Az*ϕ .- E.*Cw.*Azzz*ϕ
@@ -211,9 +267,9 @@ function torsion(z, ϕ, E, G, J, Cw)
 
 end
 
-function bimoment(z, ϕ, E, Cw)
+function bimoment(z, dm, ϕ, E, Cw)
 
-    Az, Azz, Azzz = calculateDerivativeOperators(z)
+    Az, Azz, Azzz = calculateDerivativeOperators(z, dm)
 
     #B=ECwϕ''
     B=E.*Cw.*Azz*ϕ
