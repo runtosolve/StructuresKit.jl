@@ -244,15 +244,16 @@ function lineStrength(ASDorLRFD, gravityOrUplift, memberDefinitions, sectionProp
     Mxx = InternalForces.moment(z, beamProperties.dm, -v, beamProperties.E, beamProperties.Ix)
     Myy = InternalForces.moment(z, beamProperties.dm, -u, beamProperties.E, beamProperties.Iy)
     Vyy = InternalForces.shear(z, beamProperties.dm, -v, beamProperties.E, beamProperties.Ix)
+    T = InternalForces.torsion(z, beamProperties.dm, ϕ, beamProperties.E, beamProperties.G, beamProperties.J, beamProperties.Cw)
     B = InternalForces.bimoment(z, beamProperties.dm, ϕ, beamProperties.E, beamProperties.Cw)
 
-    BTActionM1, BTActionM2, BTActionB, BTTotalInteraction, BTDemandToCapacity = bendingTorsionDemandToCapacity(Mxx, Myy, B, eMnℓxx, eMnℓyy, eBn)
+    BTActionMxx, BTActionMyy, BTActionB, BTTotalInteraction, BTDemandToCapacity = bendingTorsionDemandToCapacity(Mxx, Myy, B, eMnℓxx, eMnℓyy, eBn)
     distDemandToCapacity = distortionalDemandToCapacity(Mxx,eMnd)
     MVDemandToCapacity = bendingShearDemandToCapacity(Vyy, Mxx, eMnℓxx, eVn)
-    BBActionP, BBActionM1, BBActionM2, BBTotalInteraction, BBDemandToCapacity = biaxialBendingDemandToCapacity(Mxx, Myy, eMnℓxx, eMnℓyy)
+    BBActionP, BBActionMxx, BBActionMyy, BBTotalInteraction, BBDemandToCapacity = biaxialBendingDemandToCapacity(Mxx, Myy, eMnℓxx, eMnℓyy)
     demandToCapacity=maximum([BTDemandToCapacity; distDemandToCapacity; MVDemandToCapacity; BBDemandToCapacity])
 
-    return expectedPurlinLineStrength, z, eMnℓxx, eMnℓyy, eBn, eMnd, eVn, Mxx, Myy, Vyy, T, B, BTActionM1, BTActionM2, BTActionB, BTTotalInteraction, BTDemandToCapacity, distDemandToCapacity, MVDemandToCapacity, BBActionP, BBActionM1, BBActionM2, BBTotalInteraction, BBDemandToCapacity, demandToCapacity
+    return expectedPurlinLineStrength, z, eMnℓxx, eMnℓyy, eBn, eMnd, eVn, Mxx, Myy, Vyy, T, B, BTActionMxx, BTActionMyy, BTActionB, BTTotalInteraction, BTDemandToCapacity, distDemandToCapacity, MVDemandToCapacity, BBActionP, BBActionMxx, BBActionMyy, BBTotalInteraction, BBDemandToCapacity, demandToCapacity
 
 end
 
