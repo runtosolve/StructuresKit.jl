@@ -11,7 +11,7 @@ RecursiveArrayTools = "731186ca-8d62-57ce-b412-fbd966d074cd"
 
 [compat]
 julia = "1.4"
-DiffEQOperators = "4"
+DiffEqOperators = "4"
 NLsolve = "4"
 RecursiveArrayTools = "2"
 
