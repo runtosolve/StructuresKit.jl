@@ -6,21 +6,31 @@ using StructuresKit
 ASDorLRFD=0;    #ASDorLRFD=0 for ASD, =1 for LRFD
 
 
-    MemberDefinitions = [(1*12,1.0,      1,1,1,1,1),
-                         (1.5*12,1.0,    1,1,1,1,1),
-                         (21.0*12,6.0,  1,1,1,1,1),
-                         (2.5*12,3.0,    3,1,1,1,3),
-                         (3.5*12,3.0,    3,1,1,1,3),
-                         (20.0*12,12.0,  2,1,2,1,2),
-                         (0.5*12,1.0,    2,1,2,1,2),
-                         (2*12,1.0,      4,1,2,1,4),
-                         (0.5*12,1.0,    2,1,2,1,2),
-                         (20.0*12,12.0,  2,1,2,1,2),
-                         (3.5*12,3.0,    3,1,1,1,3),
-                         (2.5*12,3.0,    3,1,1,1,3),
-                         (21.0*12,6.0,  1,1,1,1,1),
-                         (1.5*12,1.0,    1,1,1,1,1),
-                         (1*12,1.0,      1,1,1,1,1)];
+    # MemberDefinitions = [(1*12,1.0,      1,1,1,1,1),
+    #                      (1.5*12,1.0,    1,1,1,1,1),
+    #                      (21.0*12,6.0,  1,1,1,1,1),
+    #                      (2.5*12,3.0,    3,1,1,1,3),
+    #                      (3.5*12,3.0,    3,1,1,1,3),
+    #                      (20.0*12,12.0,  2,1,2,1,2),
+    #                      (0.5*12,1.0,    2,1,2,1,2),
+    #                      (2*12,1.0,      4,1,2,1,4),
+    #                      (0.5*12,1.0,    2,1,2,1,2),
+    #                      (20.0*12,12.0,  2,1,2,1,2),
+    #                      (3.5*12,3.0,    3,1,1,1,3),
+    #                      (2.5*12,3.0,    3,1,1,1,3),
+    #                      (21.0*12,6.0,  1,1,1,1,1),
+    #                      (1.5*12,1.0,    1,1,1,1,1),
+    #                      (1*12,1.0,      1,1,1,1,1)];
+
+   MemberDefinitions = [(1.0*12,2.0,    1,1,1,1,1),
+                        (22.5*12,6.0,   1,1,1,1,1),
+                        (6.0*12,6.0,    3,1,1,1,3),
+                        (20.5*12,6.0,   2,1,2,1,2),
+                        (2*12,3.0,      4,1,2,1,4),
+                        (20.5*12,6.0,   2,1,2,1,2),
+                        (6.0*12,6.0,    3,1,1,1,3),
+                        (22.5*12,6.0,   1,1,1,1,1),
+                        (1.0*12,2.0,    1,1,1,1,1)];
 
 
 PurlinSpacing=5*12;  #in.
@@ -46,8 +56,8 @@ EndBoundaryConditions = [3 3];
 SectionProperties = [
   (9.18,1.28,-2.47,0.00159,15.1, 151.86, 66.33),
   (7.76,1.08,-2.08,0.000954,12.7, 91.48, 40.06),
-  (9.18+7.76,1.28+1.08,-(2.47+2.08),0.00159+0.000954, 15.1+12.7, 151.86+91.48, 66.33+40.06),
-  (7.76*2,1.08*2,-2.08*2,0.000954*2,12.7*2, 2*91.48, 2*40.06)];
+  (9.18+7.76,1.28+1.08,-(2.47+2.08),0.00159+0.000954, (15.1+12.7)*2, 151.86+91.48, 66.33+40.06),
+  (7.76*2,1.08*2,-2.08*2,0.000954*2,12.7*4, 2*91.48, 2*40.06)];
 
 
   #t is base metal thickness
@@ -90,6 +100,8 @@ UniformLoad=(qx,qy)
 
 
 z, u, v, ϕ, beamProperties = PlautBeam.solve(MemberDefinitions, SectionProperties, MaterialProperties, LoadLocation, BracingProperties, EndBoundaryConditions, Supports, UniformLoad);
+
+
 
 using Plots
 plot(z/12,u, legend=false, markershape= :circle)
@@ -205,3 +217,166 @@ plot!(kx,FailurePressure[:,4], markershape=:star, label="kphi=0.3")
 
 ylabel!("ASD expected gravity roof capacity [psf]")
 xlabel!("kx [kips/in./in.]")
+
+
+
+
+BracingProperties=[(0.100,0.100,25.0*12, 25.0*12)]
+
+RoofSlope=rad2deg.(atan.(0.0:(0.5/12):(4/12)))
+
+ExpectedPurlinLineStrength=zeros(length(RoofSlope))
+for i in eachindex(RoofSlope)
+    ExpectedPurlinLineStrength[i], z, eMnℓxx, eMnℓyy, eBn, eMnd, eVn, Mxx, Myy, Vyy, T, B, BTActionMxx, BTActionMyy, BTActionB, BTTotalInteraction, BTDemandToCapacity, DistDemandToCapacity, MVDemandToCapacity, BBActionP, BBActionMxx, BBActionMyy, BBTotalInteraction, BBDemandToCapacity, DemandToCapacity = PurlinDesigner.lineStrength(ASDorLRFD, GravityOrUplift, MemberDefinitions, SectionProperties, CrossSectionDimensions, MaterialProperties, LoadLocation, BracingProperties, RoofSlope[i], EndBoundaryConditions, Supports)
+
+end
+
+FailurePressure=ExpectedPurlinLineStrength./(PurlinSpacing.*cos.(deg2rad.(RoofSlope))) .*1000 .*144;
+
+plot(RoofSlope, FailurePressure,  markershape=:circle, legend=false)
+
+ylabel!("ASD expected gravity roof capacity [psf]")
+xlabel!("Roof slope [degrees]")
+ylims!((0,25))
+
+
+
+
+
+
+RoofSlope=0.0   #this sets the load perpendicular to the roof for uplift loading
+
+#Solve for the purlin line deformations
+#-10 psf pressure load
+Pressure=-10/1000/144  #kips/in.^2
+
+q=Pressure*PurlinSpacing
+qx = -q*sin(deg2rad(RoofSlope))
+qy = q*cos(deg2rad(RoofSlope))
+UniformLoad=(qx,qy)
+
+z, u, v, ϕ, beamProperties = PlautBeam.solve(MemberDefinitions, SectionProperties, MaterialProperties, LoadLocation, BracingProperties, EndBoundaryConditions, Supports, UniformLoad);
+
+plot(z/12,u, legend=false)
+ylabel!("u [in.]")
+xlabel!("z [ft.]")
+
+plot(z/12,v, legend=false)
+ylabel!("v [in.]")
+xlabel!("z [ft.]")
+
+plot(z/12,rad2deg.(ϕ), legend=false)
+ylabel!("phi [radians]")
+xlabel!("z [ft.]")
+
+Mxx = InternalForces.moment(z, beamProperties.dm, -v, beamProperties.E, beamProperties.Ix)
+Myy = InternalForces.moment(z, beamProperties.dm, -u, beamProperties.E, beamProperties.Iy)
+Vyy = InternalForces.shear(z, beamProperties.dm, -v, beamProperties.E, beamProperties.Ix)
+Vxx = InternalForces.shear(z, beamProperties.dm, -u, beamProperties.E, beamProperties.Iy)
+T = InternalForces.torsion(z, beamProperties.dm, ϕ, beamProperties.E, beamProperties.G, beamProperties.J, beamProperties.Cw)
+B = InternalForces.bimoment(z, beamProperties.dm, ϕ, beamProperties.E, beamProperties.Cw)
+
+plot(z/12,Mxx, legend=false)
+ylabel!("Mxx [kip-in.]")
+xlabel!("z [ft.]")
+
+plot(z/12,Vyy, legend=false)
+ylabel!("Vyy [kips]")
+xlabel!("z [ft.]")
+
+plot(z/12,Myy, legend=false)
+ylabel!("Myy [kip-in.]")
+xlabel!("z [ft.]")
+
+plot(z/12,Vxx, legend=false)
+ylabel!("Vxx [kips]")
+xlabel!("z [ft.]")
+
+plot(z/12,T, legend=false)
+ylabel!("T [kip-in.]")
+xlabel!("z [ft.]")
+
+plot(z/12,B, legend=false)
+ylabel!("B [kip-in.^2]")
+xlabel!("z [ft.]")
+
+
+
+GravityOrUplift=1   #GravityOrUplift=1 for uplift loading
+
+ExpectedPurlinLineStrength, z, eMnℓxx, eMnℓyy, eBn, eMnd, eVn, Mxx, Myy, Vyy, T, B, BTActionMxx, BTActionMyy, BTActionB, BTTotalInteraction, BTDemandToCapacity, DistDemandToCapacity, MVDemandToCapacity, BBActionP, BBActionMxx, BBActionMyy, BBTotalInteraction, BBDemandToCapacity, DemandToCapacity = PurlinDesigner.lineStrength(ASDorLRFD, GravityOrUplift, MemberDefinitions, SectionProperties, CrossSectionDimensions, MaterialProperties, LoadLocation, BracingProperties, RoofSlope, EndBoundaryConditions, Supports)
+
+FailurePressure=ExpectedPurlinLineStrength/PurlinSpacing*1000*144
+
+
+println("ASD expected uplift roof capacity = ",round(FailurePressure,digits=1), " psf")
+
+
+
+plot(z/12,DistDemandToCapacity, legend=false)
+plot!([0, 102],[1.0, 1.0], linecolor=:red, linewidth=2)
+ylabel!("Distortional buckling demand/capacity ratio")
+xlabel!("z [ft.]")
+ylims!((0,1.41))
+xlims!((0,102))
+
+
+
+plot(z/12,BTTotalInteraction, label="Interaction")
+plot!(z/12, BTActionMxx, label="ActionMxx")
+plot!(z/12, BTActionMyy, label="ActionMyy")
+plot!(z/12, BTActionB, label="ActionB")
+plot!([0, 102],[1.15, 1.15], label="Limit", linecolor=:red, linewidth=2)
+ylabel!("Flexure+torsion interaction")
+xlabel!("z [ft.]")
+ylims!((0,1.41))
+xlims!((0,102))
+
+
+
+plot(z/12,BBTotalInteraction, label="Interaction")
+plot!(z/12, BBActionMxx, label="ActionMxx")
+plot!(z/12, BBActionMyy, label="ActionMyy")
+plot!([0, 102],[1.0, 1.0], label="Limit", linecolor=:red, linewidth=2)
+ylabel!("Biaxial bending")
+xlabel!("z [ft.]")
+ylims!((0,1.41))
+xlims!((0,102))
+
+
+plot(z/12,MVDemandToCapacity, legend=false)
+plot!([0, 102],[1.0, 1.0], linecolor=:red, linewidth=2)
+ylabel!("Shear+flexure demand/capacity ratio")
+xlabel!("z [ft.]")
+ylims!((0,1.41))
+xlims!((0,102))
+
+
+kx=[0.0:0.02:0.1;0.15:0.05:0.3;0.4:0.2:1.0]
+kϕ=0.0:0.1:0.3
+
+
+ExpectedPurlinLineStrength=zeros(length(kx),length(kϕ))
+for i in eachindex(kx)
+    for j in eachindex(kϕ)
+we
+        BracingProperties=[(kx[i],kϕ[j],25.0*12, 25.0*12)]
+
+    ExpectedPurlinLineStrength[i,j], z, eMnℓxx, eMnℓyy, eBn, eMnd, eVn, Mxx, Myy, Vyy, T, B, BTActionMxx, BTActionMyy, BTActionB, BTTotalInteraction, BTDemandToCapacity, DistDemandToCapacity, MVDemandToCapacity, BBActionP, BBActionMxx, BBActionMyy, BBTotalInteraction, BBDemandToCapacity, DemandToCapacity = PurlinDesigner.lineStrength(ASDorLRFD, GravityOrUplift, MemberDefinitions, SectionProperties, CrossSectionDimensions, MaterialProperties, LoadLocation, BracingProperties, RoofSlope, EndBoundaryConditions, Supports)
+
+    end
+
+end
+
+
+FailurePressure=ExpectedPurlinLineStrength./PurlinSpacing .*1000 .*144;
+
+
+plot(kx,FailurePressure[:,1],  markershape=:circle, label="kphi=0.0")
+plot!(kx,FailurePressure[:,2], markershape=:square, label="kphi=0.1")
+plot!(kx,FailurePressure[:,3], markershape=:diamond, label="kphi=0.2")
+plot!(kx,FailurePressure[:,4], markershape=:star, label="kphi=0.3")
+
+ylabel!("ASD expected uplift roof capacity [psf]")
+xlabel!("kx [kips/in./in.]")
+ylims!(-22.0, 0.0)

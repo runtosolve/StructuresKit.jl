@@ -230,11 +230,10 @@ function lineStrength(ASDorLRFD, gravityOrUplift, memberDefinitions, sectionProp
     eps=0.01  #residual tolerance, hard coded for now
 
     #this spits out the expected failure load
-    q = rootfinder(q, eps, residual, demandToCapacity, memberDefinitions, sectionProperties, materialProperties, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad, eMnℓxx, eMnℓyy, eBn, eMnd, eVn, loadAngle)
-    expectedPurlinLineStrength = q
+    eqn = rootfinder(q, eps, residual, demandToCapacity, memberDefinitions, sectionProperties, materialProperties, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad, eMnℓxx, eMnℓyy, eBn, eMnd, eVn, loadAngle)
 
-    qx = -q*sin(deg2rad(loadAngle))
-    qy = q*cos(deg2rad(loadAngle))
+    qx = -eqn*sin(deg2rad(loadAngle))
+    qy = eqn*cos(deg2rad(loadAngle))
     uniformLoad = (qx,qy)
 
     #calculate all the final properties and deformations for the purlin line, at failure
@@ -253,7 +252,13 @@ function lineStrength(ASDorLRFD, gravityOrUplift, memberDefinitions, sectionProp
     BBActionP, BBActionMxx, BBActionMyy, BBTotalInteraction, BBDemandToCapacity = biaxialBendingDemandToCapacity(Mxx, Myy, eMnℓxx, eMnℓyy)
     demandToCapacity=maximum([BTDemandToCapacity; distDemandToCapacity; MVDemandToCapacity; BBDemandToCapacity])
 
-    return expectedPurlinLineStrength, z, eMnℓxx, eMnℓyy, eBn, eMnd, eVn, Mxx, Myy, Vyy, T, B, BTActionMxx, BTActionMyy, BTActionB, BTTotalInteraction, BTDemandToCapacity, distDemandToCapacity, MVDemandToCapacity, BBActionP, BBActionMxx, BBActionMyy, BBTotalInteraction, BBDemandToCapacity, demandToCapacity
+    strengths = NamedTuple{(:eMnℓxx, :eMnℓyy, :eBn, :eMnd, :eVn)}((eMnℓxx, eMnℓyy, eBn, eMnd, eVn))
+    forces = NamedTuple{(:Mxx, :Myy, :Vyy, :T, :B)}((Mxx, Myy, Vyy, T, B))
+    interactions = NamedTuple{(:BTMxx, :BTMyy, :BTB, :BTTotal, :BBP, :BBMxx, :BBAMyy, :BBTotal)}((BTActionMxx, BTActionMyy, BTActionB, BTTotalInteraction, BBActionP, BBActionMxx, BBActionMyy, BBTotalInteraction))
+    dc = NamedTuple{(:BT, :dist, :MV, :BB, :envelope)}((BTDemandToCapacity, distDemandToCapacity, MVDemandToCapacity, BBDemandToCapacity, demandToCapacity))
+
+
+    return eqn, z, strengths, forces, interactions, dc
 
 end
 
