@@ -6,12 +6,23 @@
 
 
 ## Usage
-Analyze and design structural components and systems with a variety of Julia modules.   
+Analyze and design structural components and systems with building blocks organized in a kit.   
 
 ## Status
 The current offerings are pretty niche, with a focus on thin-walled structures.  There is plenty of potential for growth, especially for large system problems. This is just the beginning.
 
-## Modules
+##Installation
+
+StructuresKit is not an officially registered package yet.  Until then, you can install this on your local machine with these commands.
+
+```julia
+
+git clone https://github.com/runtosolve/StructuresKit.jl StructuresKit
+pkg"dev StructuresKit"
+
+```
+
+## Building Blocks
 
 ### Analysis
 
@@ -33,13 +44,8 @@ American Iron and Steel Institute (AISI) S100-16 *North American Specification f
 
 American Iron and Steel Institute (AISI) S100-24 *North American Specification for the Design of Cold-Formed Steel Structural Members*
 
-## Version planning
+### Design
 
-0.1  current
-0.2  add PlautColumn
-0.X  add LocalBuckling
-0.x  add Dynamics
-0.x  add Visualization
-1.0  upgrade to matrix free methods
-2.0  add member connectivity
-3.0  add multi-threading and parallel
+[PurlinDesigner](https://github.com/runtosolve/StructuresKit.jl/blob/master/docs/PurlineDesigner/PurlinDesigner.md)
+
+Determine the expected strength of a single or multi-span purlin line under gravity or uplift loading.
