@@ -254,7 +254,7 @@ function lineStrength(ASDorLRFD, gravityOrUplift, memberDefinitions, sectionProp
 
     strengths = NamedTuple{(:eMnℓxx, :eMnℓyy, :eBn, :eMnd, :eVn)}((eMnℓxx, eMnℓyy, eBn, eMnd, eVn))
     forces = NamedTuple{(:Mxx, :Myy, :Vyy, :T, :B)}((Mxx, Myy, Vyy, T, B))
-    interactions = NamedTuple{(:BTMxx, :BTMyy, :BTB, :BTTotal, :BBP, :BBMxx, :BBAMyy, :BBTotal)}((BTActionMxx, BTActionMyy, BTActionB, BTTotalInteraction, BBActionP, BBActionMxx, BBActionMyy, BBTotalInteraction))
+    interactions = NamedTuple{(:BTMxx, :BTMyy, :BTB, :BTTotal, :BBP, :BBMxx, :BBMyy, :BBTotal)}((BTActionMxx, BTActionMyy, BTActionB, BTTotalInteraction, BBActionP, BBActionMxx, BBActionMyy, BBTotalInteraction))
     dc = NamedTuple{(:BT, :dist, :MV, :BB, :envelope)}((BTDemandToCapacity, distDemandToCapacity, MVDemandToCapacity, BBDemandToCapacity, demandToCapacity))
 
 
