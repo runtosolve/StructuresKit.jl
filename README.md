@@ -46,6 +46,6 @@ American Iron and Steel Institute (AISI) S100-24 *North American Specification f
 
 ### Design
 
-[PurlinDesigner](https://github.com/runtosolve/StructuresKit.jl/blob/master/docs/PurlineDesigner/PurlinDesigner.md)
+[PurlinDesigner](https://github.com/runtosolve/StructuresKit.jl/blob/master/docs/PurlinDesigner/PurlinDesigner.md)
 
 Determine the expected strength of a single or multi-span purlin line under gravity or uplift loading.
