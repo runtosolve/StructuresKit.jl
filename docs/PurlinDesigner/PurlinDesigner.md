@@ -93,6 +93,3 @@ The PurlinDesigner module uses PlautBeam to perform second-order analysis of the
 
 ## Verification and testing log
 Comparison of PurlinDesigner predicted strengths to physical experiments is ongoing.  The first study will be completed for the 2020 Cold-Formed Steel Research Consortium Colloquium.
-
-
-### Tests needed
