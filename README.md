@@ -26,9 +26,9 @@ pkg"dev StructuresKit"
 
 ### Analysis
 
-*[PlautBeam](https://github.com/runtosolve/StructuresKit.jl/blob/master/docs/PlautBeam/PlautBeam.md)  Perform second order structural analysis of single or multi-span thin-walled beams with a uniform loading.  
+* [PlautBeam](https://github.com/runtosolve/StructuresKit.jl/blob/master/docs/PlautBeam/PlautBeam.md)  Perform second order structural analysis of single or multi-span thin-walled beams with a uniform loading.  
 
-*[InternalForces](https://github.com/runtosolve/StructuresKit.jl/blob/master/docs/InternalForces/InternalForces.md)  Calculate internal axial force, shear, moment, and torsion from a structural member's displaced shape.
+* [InternalForces](https://github.com/runtosolve/StructuresKit.jl/blob/master/docs/InternalForces/InternalForces.md)  Calculate internal axial force, shear, moment, and torsion from a structural member's displaced shape.
 
 ### Codes and Standards
 
