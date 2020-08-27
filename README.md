@@ -11,9 +11,9 @@ Analyze and design structural components and systems with building blocks organi
 ## Status
 The current offerings are pretty niche, with a focus on thin-walled structures.  There is plenty of potential for growth, especially for large system problems. This is just the beginning.
 
-##Installation
+## Installation
 
-StructuresKit is not an officially registered package yet.  Until then, you can install this on your local machine with these commands.
+You can install StructuresKit on your local machine with these commands.
 
 ```julia
 
