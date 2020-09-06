@@ -287,3 +287,5 @@ function CUFSMtemplate(CorZ,h,b1,b2,d1,d2,r1,r2,r3,r4,q1,q2,t,nh,nb1,nb2,nd1,nd2
 	return prop,node,elem,lengths,springs,constraints,geom,cz
 
 end
+
+end #module
