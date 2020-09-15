@@ -1,5 +1,5 @@
-ENV["PYTHON"] = raw"/Users/crismoen/RunToSolve/Papers/Moen_2020_CFSRC_PurlinDesigner/venv/bin/python3"
-Pkg.build("PyCall")
+# ENV["PYTHON"] = raw"/Users/crismoen/RunToSolve/Papers/Moen_2020_CFSRC_PurlinDesigner/venv/bin/python3"
+# Pkg.build("PyCall")
 
 
 
@@ -13,7 +13,7 @@ pyimport("sys").executable
 "/Users/crismoen/RunToSolve/Papers/Moen_2020_CFSRC_PurlinDesigner/venv/bin/python3"
 
 
-PYCUFSM = pyimport("pycufsm")
+PYCUFSM = pyimport("from pycufsm import preprocess")
 
 np = pyimport("numpy")
 
@@ -50,16 +50,16 @@ constraints = []
 
 
 # Values here correspond to signature curve basis and orthogonal based upon geometry
-gbt_con = Dict([]
+gbt_con = Dict([
     ("glob", 0),
-    ()"dist", 0),
-    ()"local", 0),
-    ()"other", 0),
-    ()"o_space", 1),
-    ()"couple", 1),
-    ()"orth", 2),
-    ()"norm", 0),
-})
+    ("dist", 0),
+    ("local", 0),
+    ("other", 0),
+    ("o_space", 1),
+    ("couple", 1),
+    ("orth", 2),
+    ("norm", 0),
+])
 
 
 
@@ -74,45 +74,55 @@ gbt_con = Dict([]
 
     # Set the section properties for this simple section
     # Normally, these might be calculated by an external package
-    sect_props = {
-        'cx': 1.67,
-        'cy': 4.5,
-        'x0': -2.27,
-        'y0': 4.5,
-        'phi': 0,
-        'A': 2.06,
-        'Ixx': 28.303,
-        'Ixy': 0,
-        'Iyy': 7.019,
-        'I11': 28.303,
-        'I22': 7.019
-    }
+    sect_props = Dict([
+        ("cx", 1.67),
+        ("cy", 4.5),
+        ("x0", -2.27),
+        ("y0", 4.5),
+        ("phi", 0),
+        ("A", 2.06),
+        ("Ixx", 28.303),
+        ("Ixy", 0),
+        ("Iyy", 7.019),
+        ("I11", 28.303),
+        ("I22", 7.019)
+    ])
+
+
+
+    forces=Dict([
+        ("P", sect_props["A"]*50),
+        ("Mxx", 0),
+        ("Myy", 0),
+        ("M11", 0),
+        ("M22", 0)
+    ])
+
+PYCUFSM.preprocess.stress_gen
+
+np
+
+np.pi
 
     # Generate the stress points assuming 50 ksi yield and pure compression
-    nodes_p = stress_gen(
+    nodes_p = PYCUFSM.preprocess.stress_gen(
         nodes=nodes,
-        forces={
-            'P': sect_props['A']*50,
-            'Mxx': 0,
-            'Myy': 0,
-            'M11': 0,
-            'M22': 0
-        },
+        forces=forces,
         sect_props=sect_props,
         offset_basis=[-thickness/2, -thickness/2]
     )
 
-    # Perform the Finite Strip Method analysis
-    signature, curve, shapes = PYCUFSM.strip(
-        props=props,
-        nodes=nodes_p,
-        elements=elements,
-        lengths=lengths,
-        springs=springs,
-        constraints=constraints,
-        gbt_con=gbt_con,
-        b_c=b_c,
-        m_all=m_all,
-        n_eigs=n_eigs,
-        sect_props=sect_props
-    )
+    # # Perform the Finite Strip Method analysis
+    # signature, curve, shapes = PYCUFSM.strip(
+    #     props=props,
+    #     nodes=nodes_p,
+    #     elements=elements,
+    #     lengths=lengths,
+    #     springs=springs,
+    #     constraints=constraints,
+    #     gbt_con=gbt_con,
+    #     b_c=b_c,
+    #     m_all=m_all,
+    #     n_eigs=n_eigs,
+    #     sect_props=sect_props
+    # )

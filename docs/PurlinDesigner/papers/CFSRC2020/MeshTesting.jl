@@ -1,89 +1,75 @@
-using JuliaFEM
-using JuliaFEM.Preprocess
-add_elements! = JuliaFEM.add_elements!
+using TriangleMesh
 
-# https://mechanicalc.com/reference/cross-sections
 
-mesh = abaqus_read_mesh(joinpath("cross_section_properties", "beam.inp"))
+# size is number_points x 2
+node = [1.0 0.0 ; 0.0 1.0 ; -1.0 0.0 ; 0.0 -1.0 ;
+0.25 0.25 ; -0.25 0.25 ; -0.25 -0.25 ; 0.25 -0.25]
 
-volume_elements = create_elements(mesh, "BEAM")
-left_elements = create_surface_elements(mesh, "LEFT")
 
-info("Number of volume elements: ", length(volume_elements))
-info("Number of surface elements in LEFT", length(left_elements))
+# size is number_segments x 2
+seg = [1 2 ; 2 3 ; 3 4 ; 4 1 ; 5 6 ; 6 7 ; 7 8 ; 8 5]
 
-update!(volume_elements, "density", 5.0)
-volume = 0.0
-mass = 0.0
 
-# Calculate volume and mass of body
+# all points get marker 1
+node_marker = [ones(Int,4,1) ; 2*ones(Int,4,1)]
+# last segment gets a different marker
+seg_marker = [ones(Int,4) ; 2*ones(Int,4)]
 
-time = 0.0
-for element in volume_elements
-    for ip in get_integration_points(element)
-        detJ = element(ip, time, Val{:detJ})
-        volume += ip.weight * detJ
-        density = element("density", ip, time)
-        mass += ip.weight * density * detJ
-    end
-end
+# size is number_points x number_attr
+node_attr = rand(8,2)
 
-info("Volume of mesh: ", round(volume, 2))
-info("Mass of mesh: ", round(mass, 2))
 
-b = 10
-h = 20
-L = 100
+# size is number_holes x 2
+hole = [0.5 0.5]
 
-using Base.Test
-@test isapprox(volume, b*h*L)
-@test isapprox(mass, 5*volume)
 
-# Calculate first moment of inertia with respect to origin
+poly = Polygon_pslg(8, 1, 2, 8, 1)
 
-Qy = 0.0
-Qz = 0.0
-area = 0.0
-for element in left_elements
-    for ip in get_integration_points(element)
-        detJ = element(ip, time, Val{:detJ})
-        x, y, z = element("geometry", ip, time)
-        Qy += ip.weight * z * detJ
-        Qz += ip.weight * y * detJ
-        area += ip.weight * detJ
-    end
-end
+set_polygon_point!(poly, node)
+set_polygon_point_marker!(poly, node_marker)
+set_polygon_point_attribute!(poly, node_attr)
+set_polygon_segment!(poly, seg)
+set_polygon_segment_marker!(poly, seg_marker)
+set_polygon_hole!(poly, hole)
 
-info("Qy: ", round(Qy, 2))
-info("Qz: ", round(Qz, 2))
+# mesh = create_mesh(poly, info_str="my mesh", voronoi=true, delaunay=true, set_area_max=true)
 
-# Calculate centroid
 
-yc = Qz/area
-zc = Qy/area
 
-info("yc: ", round(yc, 2))
-info("zc: ", round(zc, 2))
+m = create_mesh(poly, info_str = "Mesh test",
+		verbose = false,
+		check_triangulation = true,
+		voronoi = true,
+		delaunay = true,
+		output_edges = true,
+		output_cell_neighbors = true,
+		quality_meshing = true,
+		prevent_steiner_points_boundary  = false,
+		prevent_steiner_points = false,
+		set_max_steiner_points = false,
+		set_area_max = false,
+		set_angle_min = false,
+		add_switches = "")
 
-@test isapprox(yc, b/2)
-@test isapprox(zc, h/2)
 
-# Calculate second moment of inertia with respect to centroid
+m.point
 
-Iy = 0.0
-Iz = 0.0
-for element in left_elements
-    for ip in get_integration_points(element, 1)
-        detJ = element(ip, time, Val{:detJ})
-        x, y, z = element("geometry", ip, time)
-        Iy += ip.weight * (y-yc)^2 * detJ
-        Iz += ip.weight * (z-zc)^2 * detJ
-        area += ip.weight * detJ
-    end
-end
-
-info("Iy: ", round(Iy, 2))
-info("Iz: ", round(Iz, 2))
-
-@test isapprox(Iy, h*b^3/12)
-@test isapprox(Iz, b*h^3/12)
+# using Makie
+#
+# mesh(m)
+#
+# # p = polygon_unitSimplex()
+# # 	    m = create_mesh(p, info_str = "Mesh test",
+# #                             verbose = false,
+#                             check_triangulation = true,
+#                             voronoi = true,
+#                             delaunay = true,
+#                             output_edges = true,
+#                             output_cell_neighbors = true,
+#                             quality_meshing = true,
+#                             prevent_steiner_points_boundary  = false,
+#                             prevent_steiner_points = false,
+#                             set_max_steiner_points = false,
+#                             set_area_max = false,
+#                             set_angle_min = false,
+#                             add_switches = "")
