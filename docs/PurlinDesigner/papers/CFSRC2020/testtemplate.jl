@@ -2,11 +2,15 @@ using StructuresKit
 using CSV, DataFrames
 
 
+#need Wn
+
+
 #read in cross-section dimensions from Gao and Moen (2013)
 path = @__DIR__
 filename = string(path, "/Gao_Moen_2013_Table1", ".csv")
 dims = CSV.read(filename, DataFrame, header=false)
 
+dims[1,13]
 
 for i in 1:49
 
@@ -26,7 +30,7 @@ for i in 1:49
 
     #calculate centerline dimensions
 
-    CorZ = dims[i,12]+1
+    CorZ = dims[i,13]+1
     center = 0  #outside dimensions
     kipin = 0
 
@@ -41,7 +45,7 @@ for i in 1:49
     nr4 = 4
 
 
-    prop,node,elem,lengths,springs,constraints,geom,cz = CrossSection.CUFSMtemplate(CorZ,H,Bt,Bc,Dt,Dc,r,r,r,r,θt,θc,t,nh,nb1,nb2,nd1,nd2,nr1,nr2,nr3,nr4,kipin,center)
+    prop,node,elem,lengths,springs,constraints,geom,cz = CrossSection.CUFSMtemplate(CorZ,H,Bc,Bt,Dc,Dt,r,r,r,r,θc,θt,t,nh,nb1,nb2,nd1,nd2,nr1,nr2,nr3,nr4,kipin,center)
 
     testnum = string(i+1)
 
