@@ -25,8 +25,13 @@ function sectionStrengths(ASDorLRFD, dz, dm, memberDefinitions, sectionPropertie
     Sxx = Ixx./ycy
     Myxx = Fy.*Sxx
     Mnexx = Myxx
-    Mcrℓxx = BeamMesh.propvector(memberDefinitions, dm, dz, sectionProperties, 3, 6)
-    eMnℓxx =  AISIS10016.f321.(Mnexx, Mcrℓxx, ASDorLRFD)
+    Mcrℓxx = BeamMesh.propvector(memberDefinitions, dm, dz, sectionProperties, 3, 7)
+
+    Mnℓxx = zeros(Float64, numberOfNodes)
+    eMnℓxx = zeros(Float64, numberOfNodes)
+    for i in eachindex(Mcrℓxx)
+        Mnℓxx[i], eMnℓxx[i] =  AISIS10016.f321(Mnexx[i], Mcrℓxx[i], ASDorLRFD)
+    end
 
     #weak axis flexure, local-global interaction
     Iyy = BeamMesh.propvector(memberDefinitions, dm, dz, sectionProperties, 3, 2)
@@ -41,14 +46,25 @@ function sectionStrengths(ASDorLRFD, dz, dm, memberDefinitions, sectionPropertie
     Syy = Iyy./ycx
     Myyy = Fy.*Syy
     Mneyy = Myyy
-    Mcrℓyy = BeamMesh.propvector(memberDefinitions, dm, dz, sectionProperties, 3, 7)
-    eMnℓyy = AISIS10016.f321.(Mneyy, Mcrℓyy, ASDorLRFD)
+    Mcrℓyy = BeamMesh.propvector(memberDefinitions, dm, dz, sectionProperties, 3, 8)
+
+    Mnℓyy = zeros(Float64, numberOfNodes)
+    eMnℓyy = zeros(Float64, numberOfNodes)
+    for i in eachindex(Mcrℓyy)
+        Mnℓyy[i], eMnℓyy[i] = AISIS10016.f321(Mneyy[i], Mcrℓyy[i], ASDorLRFD)
+    end
 
     #torsion
     Cw = BeamMesh.propvector(memberDefinitions, dm, dz, sectionProperties, 3, 5)
     Fy = BeamMesh.propvector(memberDefinitions, dm, dz, materialProperties, 4, 3)
     Wn = BeamMesh.propvector(memberDefinitions, dm, dz, sectionProperties, 3, 6)
-    eBn = AISIS10024.h411.(Cw, Fy, Wn, ASDorLRFD)
+    Bcrℓ = BeamMesh.propvector(memberDefinitions, dm, dz, sectionProperties, 3, 9)
+
+    Bn = zeros(Float64, numberOfNodes)
+    eBn = zeros(Float64, numberOfNodes)
+    for i in eachindex(Bcrℓ)
+        Bn[i], eBn[i] = AISIS10024.h411(Cw[i], Fy[i], Wn[i], Bcrℓ[i], ASDorLRFD)
+    end
 
     #distortional buckling
     CorZ = BeamMesh.propvector(memberDefinitions, dm, dz, crossSectionDimensions, 3, 6)
@@ -76,7 +92,11 @@ function sectionStrengths(ASDorLRFD, dz, dm, memberDefinitions, sectionPropertie
 
     My=Fy.*Sf
 
-    eMnd = AISIS10016.f411.(My, Mcrd, ASDorLRFD)
+    Mnd = zeros(Float64, numberOfNodes)
+    eMnd = zeros(Float64, numberOfNodes)
+    for i in eachindex(Mcrd)
+        Mnd[i], eMnd[i] = AISIS10016.f411(My[i], Mcrd[i], ASDorLRFD)
+    end
 
 
     #Web shear strength
@@ -85,8 +105,12 @@ function sectionStrengths(ASDorLRFD, dz, dm, memberDefinitions, sectionPropertie
     kv  = AISIS10016.g233.(a, h)
     Fcr = AISIS10016.g232.(E, μ, kv, h, t)
     Vcr = AISIS10016.g231.(h, t, Fcr)
-    eVn = AISIS10016.g21.(E, h, t, Fy, Vcr, ASDorLRFD)
 
+    Vn = zeros(Float64, numberOfNodes)
+    eVn = zeros(Float64, numberOfNodes)
+    for i in eachindex(Vcr)
+        Vn[i], eVn[i] = AISIS10016.g21(E[i], h[i], t[i], Fy[i], Vcr[i], ASDorLRFD)
+    end
 
     #note nominal capacities are divided by ASD safety factor or
     #multiplied by LRFD resistance factor here
@@ -106,7 +130,7 @@ function bendingTorsionDemandToCapacity(Mxx, Myy, B, eMnℓxx, eMnℓyy, eBn)
     actionB = [x[3] for x in interactionCheck]
     totalInteraction = [x[4] for x in interactionCheck]
 
-    demandToCapacity = totalInteraction./1.15
+    demandToCapacity = totalInteraction./1.00
 
     return actionMxx, actionMyy, actionB, totalInteraction, demandToCapacity
 
@@ -252,13 +276,14 @@ function lineStrength(ASDorLRFD, gravityOrUplift, memberDefinitions, sectionProp
     BBActionP, BBActionMxx, BBActionMyy, BBTotalInteraction, BBDemandToCapacity = biaxialBendingDemandToCapacity(Mxx, Myy, eMnℓxx, eMnℓyy)
     demandToCapacity=maximum([BTDemandToCapacity; distDemandToCapacity; MVDemandToCapacity; BBDemandToCapacity])
 
+    deformation = NamedTuple{(:u, :v, :ϕ)}((u, v, ϕ))
     strengths = NamedTuple{(:eMnℓxx, :eMnℓyy, :eBn, :eMnd, :eVn)}((eMnℓxx, eMnℓyy, eBn, eMnd, eVn))
     forces = NamedTuple{(:Mxx, :Myy, :Vyy, :T, :B)}((Mxx, Myy, Vyy, T, B))
     interactions = NamedTuple{(:BTMxx, :BTMyy, :BTB, :BTTotal, :BBP, :BBMxx, :BBMyy, :BBTotal)}((BTActionMxx, BTActionMyy, BTActionB, BTTotalInteraction, BBActionP, BBActionMxx, BBActionMyy, BBTotalInteraction))
-    dc = NamedTuple{(:BT, :dist, :MV, :BB, :envelope)}((BTDemandToCapacity, distDemandToCapacity, MVDemandToCapacity, BBDemandToCapacity, demandToCapacity))
+    demand_to_capacity = NamedTuple{(:BT, :dist, :MV, :BB, :envelope)}((BTDemandToCapacity, distDemandToCapacity, MVDemandToCapacity, BBDemandToCapacity, demandToCapacity))
 
 
-    return eqn, z, strengths, forces, interactions, dc
+    return eqn, z, deformation, strengths, forces, interactions, demand_to_capacity
 
 end
 

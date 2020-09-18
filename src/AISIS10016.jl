@@ -19,9 +19,9 @@ function f321(Mne, Mcrℓ, ASDorLRFD)
         Mnℓ=(1-0.15*(Mcrℓ/Mne)^0.4)*(Mcrℓ/Mne)^0.4*Mne
     end
 
-    Mnℓ = Mnℓ * StrengthFactor
+    eMnℓ = Mnℓ * StrengthFactor
 
-    return Mnℓ
+    return Mnℓ, eMnℓ
 
 end
 
@@ -44,9 +44,9 @@ function f411(My, Mcrd, ASDorLRFD)
         Mnd=(1-0.22*(Mcrd/My)^0.4)*(Mcrd/My)^0.4*My
     end
 
-    Mnd=Mnd*StrengthFactor
+    eMnd=Mnd*StrengthFactor
 
-    return Mnd
+    return Mnd, eMnd
 
 end
 
@@ -75,7 +75,7 @@ function g21(E, h, t, Fy, Vcr, ASDorLRFD)
 
     eVn=Vn*StrengthFactor
 
-    return eVn
+    return Vn, eVn
 
 end
 

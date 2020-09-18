@@ -12,6 +12,10 @@ export BeamMesh
 include("BeamMesh.jl")
 using .BeamMesh
 
+export Connections
+include("Connections.jl")
+using .Connections
+
 export CrossSection
 include("CrossSection.jl")
 using .CrossSection

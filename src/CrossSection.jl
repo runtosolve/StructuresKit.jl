@@ -486,7 +486,7 @@ function warp(node, elem)
 	Bx=(1/Ixc)*Bx-2*(Ys)
 	By=(1/Iyc)*By-2*(Xs)
 
-	return Cw, J, Xs, Ys, w, Bx, By, B1, B2
+	return A, xc, yc, Ixc, Iyc, Ixyc, Imax, Imin, Th_p, Cw, J, Xs, Ys, w, Bx, By, B1, B2
 
 end
 

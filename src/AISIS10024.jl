@@ -1,6 +1,11 @@
 module AISIS10024
 
-function h411(Cw, Fy, Wn, ASDorLRFD)
+using ..AISIS10016
+
+export h411, h42
+
+
+function h411(Cw, Fy, Wn, Bcrℓ, ASDorLRFD)
 
     if ASDorLRFD==0
         StrengthFactor=1/1.67
@@ -10,10 +15,16 @@ function h411(Cw, Fy, Wn, ASDorLRFD)
         StrengthFactor=1.0   #to just get nominal strength
     end
 
-    #calculate bimoment nominal strength
-    Bn=Cw.*Fy./Wn*StrengthFactor
+    #calculate bimoment yield strength
+    By=Cw.*Fy./Wn
 
-    return Bn
+    #calculate nominal bimoment strength including local buckling
+    #for now use DSM local buckling flexural curve
+    Bn, notused = AISIS10016.f321(By, Bcrℓ, ASDorLRFD)
+
+    eBn = Bn * StrengthFactor
+
+    return Bn, eBn
 
 end
 

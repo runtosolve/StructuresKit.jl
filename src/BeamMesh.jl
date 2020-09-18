@@ -11,7 +11,7 @@ function define(memberDefinitions)
 
       L = memberDefinitions[i][1]
       dL = memberDefinitions[i][2]
-      numSegments = floor(Int64, L/dL)
+      numSegments = round(Int64, L/dL)
 
       if i == 1
          dz = ones(numSegments)*dL  #member discretization
@@ -38,7 +38,7 @@ function beamnodeprops(memberDefinitions)
 
       L = memberDefinitions[1][1]
       dL = memberDefinitions[1][2]
-      numSegments = floor(Int64, L/dL)
+      numSegments = round(Int64, L/dL)
       numNodes = numSegments+1   #number of nodes in a segment
 
       dm = ones(Int8, numNodes)
