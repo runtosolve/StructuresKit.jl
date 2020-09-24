@@ -1,6 +1,6 @@
 module CrossSection
 
-export CZcenterline, CUFSMtemplate, warp
+export CZcenterline, CUFSMtemplate, CUFSMproperties
 
 
 function CZcenterline(H,B1,D1,q1,B2,D2,q2,ri1,ri2,ri3,ri4,t)
@@ -103,8 +103,8 @@ function CUFSMtemplate(CorZ,h,b1,b2,d1,d2,r1,r2,r3,r4,q1,q2,t,nh,nb1,nb2,nd1,nd2
 
 
 	#rest of the dimensions are "flat dimensions" and acceptable for modeling
-	if (r1==0) & (r2==0) & (r3==0) & (r4==0)
-	    if d1==0&d2==0
+	if (r1==0.0) & (r2==0.0) & (r3==0.0) & (r4==0.0)
+	    if (d1==0.0) & (d2==0.0)
 	        #track or unlipped Z with sharp corners
 	        geom=[1 b1            0
 	            2 0             0
@@ -122,7 +122,7 @@ function CUFSMtemplate(CorZ,h,b1,b2,d1,d2,r1,r2,r3,r4,q1,q2,t,nh,nb1,nb2,nd1,nd2
 	        n=[nd1 nb1 nh nb2 nd2];
 	    end
 	else
-	    if (d1==0) & (d2==0)
+	    if (d1==0.0) & (d2==0.0)
 	        geom=[1 r1+b1                            0
 	            2 r1                               0
 	            3 0                                r1
@@ -159,7 +159,7 @@ function CUFSMtemplate(CorZ,h,b1,b2,d1,d2,r1,r2,r3,r4,q1,q2,t,nh,nb1,nb2,nd1,nd2
 
 		node[nstart,:]=[nstart; geom[i,2:3]; 1; 1; 1; 1; 1.0];
 
-	    if (r1==0) & (r2==0) & (r3==0) & (r4==0)
+	    if (r1==0.0) & (r2==0.0) & (r3==0.0) & (r4==0.0)
 	        #------------------------
 	        #SHARP CORNER MODEL
 	        for j=1:n[i]-1
@@ -168,7 +168,7 @@ function CUFSMtemplate(CorZ,h,b1,b2,d1,d2,r1,r2,r3,r4,q1,q2,t,nh,nb1,nb2,nd1,nd2
 	        #------------------------
 	    else
 	        #ROUND CORNER MODEL
-	        if (d1==0) & (d2==0) #track or unlipped Z geometry
+	        if (d1==0.0) & (d2==0.0) #track or unlipped Z geometry
 	            #------------------------
 	            #UNLIPPED C OR Z SECTION
 	            if maximum(i.==[1 3 5]) #use linear interpolation
@@ -247,8 +247,8 @@ function CUFSMtemplate(CorZ,h,b1,b2,d1,d2,r1,r2,r3,r4,q1,q2,t,nh,nb1,nb2,nd1,nd2
 
 
 	#GET THE LAST NODE ASSIGNED
-	if (r1==0) & (r2==0) & (r3==0) & (r4==0)
-	    if (d1==0) & (d2==0)
+	if (r1==0.0) & (r2==0.0) & (r3==0.0) & (r4==0.0)
+	    if (d1==0.0) & (d2==0.0)
 	        i=4;
 	        node[sum(n[1:i-1])+1,:]=[sum(n[1:i-1])+1; geom[i,2:3]; 1; 1; 1; 1; 1.0];
 	    else
@@ -256,7 +256,7 @@ function CUFSMtemplate(CorZ,h,b1,b2,d1,d2,r1,r2,r3,r4,q1,q2,t,nh,nb1,nb2,nd1,nd2
 	        node[sum(n[1:i-1])+1,:]=[sum(n[1:i-1])+1; geom[i,2:3]; 1; 1; 1; 1; 1.0];
 	    end
 	else
-	    if (d1==0) & (d2==0)
+	    if (d1==0.0) & (d2==0.0)
 	        i=6;
 	        node[sum(n[1:i-1])+1,:]=[sum(n[1:i-1])+1; geom[i,2:3]; 1; 1; 1; 1; 1.0];
 	    else
@@ -292,9 +292,10 @@ end
 
 
 
-function warp(node, elem)
+function CUFSMproperties(node, elem)
 
 	#not matching CUFSM output exactly, need to check
+	#because CUTWP function is used instead...
 
     #Translated from CUFSM v5.01, thanks Ben.
 	# %[A,xcg,zcg,Ixx,Izz,Ixz,thetap,I11,I22]=grosprop(node,elem)
