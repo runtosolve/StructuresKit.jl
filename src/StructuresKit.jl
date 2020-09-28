@@ -36,4 +36,9 @@ export PurlinDesigner
 include("PurlinDesigner.jl")
 using .PurlinDesigner
 
+export Visualize
+include("Visualize.jl")
+using .Visualize
+
+
 end

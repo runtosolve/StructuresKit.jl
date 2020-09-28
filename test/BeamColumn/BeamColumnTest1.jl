@@ -7,7 +7,7 @@ SectionProperties = [(272.0,363370.0,64100.0, 188.0, 122720891.0, -32.59, 0.0)]
 
 
 #E  ν
-MaterialProperties = [(200,0.30)]
+MaterialProperties = [(200000,0.30)]
 
 
 #kx ky kϕ hx hy
@@ -18,7 +18,7 @@ Springs = [(0.0, 0.0, 0.0, 0.0, 0.0)]
 MemberDefinitions = [(2438.0,2438.0/12,1,1,1)]
 
 #P qx qy ax ay
-Loads = [(1000*ones(13)),(2*ones(13)), (0.0*ones(13)),(0.0*ones(13)),(0.0*ones(13))]
+Loads = [(10000*ones(13)),(2*ones(13)), (0.0*ones(13)),(0.0*ones(13)),(-1.0*ones(13))]
 
 
 #end boundary conditions
@@ -31,3 +31,7 @@ Supports = [0.0 2438.0]
 
 
 u, v, ϕ, properties = BeamColumn.solve(MemberDefinitions, SectionProperties, MaterialProperties, Loads, Springs, EndBoundaryConditions, Supports)
+
+using Plots
+
+plot(properties.z, u)
