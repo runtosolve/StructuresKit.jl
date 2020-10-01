@@ -15,6 +15,8 @@ dims[1,13]
 
 for i in 1:49
 
+
+
     #bring in cross-section dimensions
     Bc = dims[i,1]
     Dc = dims[i,2]
@@ -48,6 +50,11 @@ for i in 1:49
 
     prop,node,elem,lengths,springs,constraints,geom,cz = CrossSection.CUFSMtemplate(CorZ,H,Bc,Bt,Dc,Dt,r,r,r,r,θc,θt,t,nh,nb1,nb2,nd1,nd2,nr1,nr2,nr3,nr4,kipin,center)
 
+    #flip Z section about the vertical axis
+    if CorZ == 2
+        node[:, 2] = -node[:, 2]
+    end
+
     testnum = string(i+1)
 
 
@@ -63,6 +70,9 @@ end
 
 
 using Plots
+
+# node[:, 3] = -node[:, 3]
+
 plot(node[:,2], node[:, 3], markershape = :circle)
 
 

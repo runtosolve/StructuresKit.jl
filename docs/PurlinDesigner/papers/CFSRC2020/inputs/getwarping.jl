@@ -51,6 +51,7 @@ for i in 1:49
 end
 
 
+
 filename = "/Users/crismoen/.julia/dev/StructuresKit/docs/PurlinDesigner/papers/CFSRC2020/Wn.csv"
 CSV.write(filename,  DataFrame(Wn), header=false)
 

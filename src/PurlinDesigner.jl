@@ -6,8 +6,18 @@ using ..AISIS10024
 using ..PlautBeam
 using ..InternalForces
 using ..BeamMesh
+using ..BeamColumn
+using ..CrossSection
 
-export lineStrength
+export lineStrength, free_flange_define
+
+
+#calculate flange section properties
+#calculate flange deflections
+#calculate demand moment on flange
+#calculate flange yield moment
+#calculate demand to capacity
+#include demand to capacity in interaction checks
 
 
 #calculated section strengths along a purlin line
@@ -283,8 +293,73 @@ function lineStrength(ASDorLRFD, gravityOrUplift, memberDefinitions, sectionProp
     demand_to_capacity = NamedTuple{(:BT, :dist, :MV, :BB, :envelope)}((BTDemandToCapacity, distDemandToCapacity, MVDemandToCapacity, BBDemandToCapacity, demandToCapacity))
 
 
-    return eqn, z, deformation, strengths, forces, interactions, demand_to_capacity
+    return eqn, z, beamProperties, deformation, strengths, forces, interactions, demand_to_capacity
 
 end
+
+
+
+function free_flange_define(MemberDefinitions, MaterialProperties, CrossSectionDimensions, Mxx, Vyy, Ixx)
+
+
+    dz, z, dm = BeamMesh.define(MemberDefinitions)
+
+    numnodes = length(z)
+
+
+
+    CorZ = CrossSectionDimensions[1][6] + 1
+    H = CrossSectionDimensions[1][2]
+    Bc = CrossSectionDimensions[1][3]
+    Dc = CrossSectionDimensions[1][4]
+    θc = CrossSectionDimensions[1][5]
+    t = CrossSectionDimensions[1][1]
+
+    r = 0.0
+    kipin = 0
+    center = 0
+    n = 4
+
+    node, elem = CrossSection.CZflange_template(CorZ,H,Bc,Bc,Dc,Dc,r,r,r,r,θc,θc,t,n,n,n,n,n,n,n,n,n,kipin,center)
+        Af, xcf, ycf, Ixcf, Iycf, Ixycf, Imaxf, Iminf, Th_pf, Cwf, Jf, Xsf, Ysf, wf, Bxf, Byf, B1f, B2f = CrossSection.CUFSMproperties(node, elem)
+
+    xo = Xsf - xcf
+    yo = ycf - Ysf
+
+    FlangeProperties = [(Af, Ixcf, Iycf, Jf, Cwf, xo, yo)]
+
+    E = MaterialProperties[1][1]
+
+    Icantilever = 1/12*t^3   #length^4/length for distributed spring
+    kxf = 3*E*Icantilever/H^3
+    kϕf = E*Icantilever/H
+
+    #kx ky kϕ hx hy
+    Springs = [(kxf*ones(numnodes)),(0.0*ones(numnodes)), (kϕf*ones(numnodes)),(0.0*ones(numnodes)),(0.0*ones(numnodes))]
+
+    #approximate axial force in flange
+    P = Mxx ./ H
+
+    #There is shear flow in the free flange of a C, not in a Z.
+
+    if CorZ == 1  #C
+
+        qx = (Vyy .* Af .* (H/2 .- ycf)) ./ Ixx * (Af ./ t) / [dz[1]/2 dz[2:end-1] dz[end]/2]  #distributed force in flange from shear flow
+
+    elseif CorZ == 2  #Z
+
+        qx = 0.00001 * ones(numnodes)   #small initial imperfection for a Z
+
+    end
+
+    #P qx qy ax ay
+    Loads = [P, qx, (0.0*ones(numnodes)),(-xc*ones(numnodes)),(yc*ones(numnodes))]
+
+    return FlangeProperties, Springs, Loads
+
+end
+
+
+
 
 end #module

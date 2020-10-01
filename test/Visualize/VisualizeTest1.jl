@@ -1,3 +1,5 @@
+using StructuresKit
+
 
 #example
 CrossSectionNodes=[2.5 -3.5;2 -4;0 -4;0 4;-2 4;-2.5 3.5]  #member cross-section nodes, in x-y pairs
@@ -13,7 +15,7 @@ v=a2*sin.(π*z/L)
 ϕ=a3*sin.(π*z/L)
 
 #mesh the member deformed shape, for undeformed set u=v=ϕ=0
-coordinates, connectivity=Mesh3D(CrossSectionNodes, z, u, v, ϕ)
+coordinates, connectivity=Visualize.Mesh3D(CrossSectionNodes, z, u, v, ϕ)
 
 #plot the mesh with Makie
 using Makie

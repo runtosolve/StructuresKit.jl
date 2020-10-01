@@ -1,6 +1,6 @@
 module CrossSection
 
-export CZcenterline, CUFSMtemplate, CUFSMproperties
+export CZcenterline, CUFSMtemplate, CUFSMproperties, CZflange_template
 
 
 function CZcenterline(H,B1,D1,q1,B2,D2,q2,ri1,ri2,ri3,ri4,t)
@@ -488,6 +488,29 @@ function CUFSMproperties(node, elem)
 	By=(1/Iyc)*By-2*(Xs)
 
 	return A, xc, yc, Ixc, Iyc, Ixyc, Imax, Imin, Th_p, Cw, J, Xs, Ys, w, Bx, By, B1, B2
+
+end
+
+
+#Get the node and element properties just for the flange and lip of a C or Z section.
+#This code grabs the bottom flange and lip.
+function CZflange_template(CorZ,H,Bc,Bt,Dc,Dt,r1,r2,r3,r4,θc,θt,t,nh,nb1,nb2,nd1,nd2,nr1,nr2,nr3,nr4,kipin,center)
+
+    prop,node,elem,lengths,springs,constraints,geom,cz = CrossSection.CUFSMtemplate(CorZ,H,Bc,Bt,Dc,Dt,r1,r2,r3,r4,θc,θt,t,nh,nb1,nb2,nd1,nd2,nr1,nr2,nr3,nr4,kipin,center)
+
+    if CorZ == 2
+        node[:, 2] = -node[:, 2]
+    end
+
+    index_xo = findall(x-> x==0.0, node[:, 2])
+    index_yo = findall(y-> y==0.0, node[:, 3])
+    index_o = intersect(index_xo, index_yo)
+    index = 1:index_o[1]
+
+	nodeflange = node[index,:]
+    elemflange = elem[index[1:end-1],:]
+
+    return nodeflange, elemflange
 
 end
 

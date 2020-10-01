@@ -169,12 +169,19 @@ function define(MemberDefinitions, SectionProperties, MaterialProperties, Loads,
    ν = BeamMesh.propvector(MemberDefinitions, dm, dz, MaterialProperties, 4, 2)
    G = E./(2 .*(1 .+ ν))
 
-   kx = BeamMesh.propvector(MemberDefinitions, dm, dz, Springs, 5, 1)
-   ky = BeamMesh.propvector(MemberDefinitions, dm, dz, Springs, 5, 2)
-   kϕ = BeamMesh.propvector(MemberDefinitions, dm, dz, Springs, 5, 3)
+   # kx = BeamMesh.propvector(MemberDefinitions, dm, dz, Springs, 5, 1)
+   # ky = BeamMesh.propvector(MemberDefinitions, dm, dz, Springs, 5, 2)
+   # kϕ = BeamMesh.propvector(MemberDefinitions, dm, dz, Springs, 5, 3)
+   #
+   # hx = BeamMesh.propvector(MemberDefinitions, dm, dz, Springs, 5, 4)
+   # hy = BeamMesh.propvector(MemberDefinitions, dm, dz, Springs, 5, 5)
 
-   hx = BeamMesh.propvector(MemberDefinitions, dm, dz, Springs, 5, 4)
-   hy = BeamMesh.propvector(MemberDefinitions, dm, dz, Springs, 5, 5)
+   kx = Springs[1]
+   ky = Springs[2]
+   kϕ = Springs[3]
+
+   hx = Springs[4]
+   hy = Springs[5]
 
    Azzzz,Azz = calculateDerivativeOperators(dz) #calculate derivative operators
 
