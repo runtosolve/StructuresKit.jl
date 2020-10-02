@@ -131,7 +131,70 @@ GravityOrUplift=1   #GravityOrUplift=0 for gravity loading
 eqn, z, properties, deformation, strengths, forces, interactions, demand_to_capacity = PurlinDesigner.lineStrength(ASDorLRFD, GravityOrUplift, MemberDefinitions, SectionProperties, CrossSectionDimensions, MaterialProperties, LoadLocation, BracingProperties, RoofSlope, EndBoundaryConditions, Supports)
 
 
-FlangeProperties, Springs, Loads = PurlinDesigner.free_flange_define(MemberDefinitions, MaterialProperties, SectionProperties, Bridging, Mxx, Vyy, Ixx)
+CorZ = CrossSectionDimensions[1][6] + 1   #generalize this later
+H = CrossSectionDimensions[1][2]
+B = CrossSectionDimensions[1][3]
+D = CrossSectionDimensions[1][4]
+θ = CrossSectionDimensions[1][5]
+
+
+r = 0.0
+kipin = 0
+center = 0  #out-to-out dimensions
+n = 4
+
+prop,node,elem,lengths,springs,constraints,geom,cz = CrossSection.CUFSMtemplate(CorZ,H,B,B,D,D,r,r,r,r,θ,θ,t,n,n,n,n,n,n,n,n,n,kipin,center)
+
+A, xc, yc, Ixc, Iyc, Ixyc, Imax, Imin, Th_p, Cw, J, Xs, Ys, w, Bx, By, B1, B2, Qx, Qy, Ai = CrossSection.CUFSMproperties(node, elem)
+
+Q=Qx[5:9]
+dA = Ai[5:8]
+V=2.0
+I = Ixc
+
+τ = CrossSection.shear_stress.(V, Q, I, t)
+
+#integrate stress over flange
+
+Vfx = CrossSection.shear_force(τ, dA)
+
+# Vfx = 0.0
+# for i = 1:length(τ) - 1
+#     Vfx = Vfx + τ[i]*dA[i] + 1/2*(τ[i]+τ[i+1])*dA[i]
+# end
+
+
+
+
+#
+#
+#
+#
+#
+# CorZ = CrossSectionDimensions[1][6] + 1
+# H = CrossSectionDimensions[1][2]
+# Bc = CrossSectionDimensions[1][3]
+# Dc = CrossSectionDimensions[1][4]
+# θc = CrossSectionDimensions[1][5]
+#
+#
+# r = 0.0
+# kipin = 0
+# center = 0
+# n = 4
+#
+# prop,node,elem,lengths,springs,constraints,geom,cz = CrossSection.CUFSMtemplate(CorZ,H,Bc,Bc,Dc,Dc,r,r,r,r,θc,θc,t,n,n,n,n,n,n,n,n,n,kipin,center)
+#
+#
+# using Plots
+# plot(node[:,2], node[:,3], seriestype=:scatter)
+#
+# A, xc, yc, Ixc, Iyc, Ixyc, Imax, Imin, Th_p, Cw, J, Xs, Ys, w, Bx, By, B1, B2, VX, VY = CrossSection.CUFSMproperties(node, elem)
+#
+#
+# plot(node[:,2], node[:,3], VY)
+
+# FlangeProperties, Springs, Loads = PurlinDesigner.free_flange_define(MemberDefinitions, MaterialProperties, SectionProperties, forces.Mxx, forces.Vyy, properties.Ix)
 
 
 
@@ -145,19 +208,19 @@ FlangeProperties, Springs, Loads = PurlinDesigner.free_flange_define(MemberDefin
 #
 #
 #
-#     CorZ = CrossSectionDimensions[1][6] + 1
-#     H = CrossSectionDimensions[1][2]
-#     Bc = CrossSectionDimensions[1][3]
-#     Dc = CrossSectionDimensions[1][4]
-#     θc = CrossSectionDimensions[1][5]
-#
-#     r = 0.0
-#     kipin = 0
-#     center = 0
-#     n = 4
-#
-#     node, elem = CrossSection.CZflange_template(CorZ,H,Bc,Bc,Dc,Dc,r,r,r,r,θc,θc,t,n,n,n,n,n,n,n,n,n,kipin,center)
-#         Af, xcf, ycf, Ixcf, Iycf, Ixycf, Imaxf, Iminf, Th_pf, Cwf, Jf, Xsf, Ysf, wf, Bxf, Byf, B1f, B2f = CrossSection.CUFSMproperties(node, elem)
+    # CorZ = CrossSectionDimensions[1][6] + 1
+    # H = CrossSectionDimensions[1][2]
+    # Bc = CrossSectionDimensions[1][3]
+    # Dc = CrossSectionDimensions[1][4]
+    # θc = CrossSectionDimensions[1][5]
+    #
+    # r = 0.0
+    # kipin = 0
+    # center = 0
+    # n = 4
+    #
+    # node, elem = CrossSection.CZflange_template(CorZ,H,Bc,Bc,Dc,Dc,r,r,r,r,θc,θc,t,n,n,n,n,n,n,n,n,n,kipin,center)
+    #     Af, xcf, ycf, Ixcf, Iycf, Ixycf, Imaxf, Iminf, Th_pf, Cwf, Jf, Xsf, Ysf, wf, Bxf, Byf, B1f, B2f = CrossSection.CUFSMproperties(node, elem)
 #
 #     xo = Xsf - xcf
 #     yo = ycf - Ysf

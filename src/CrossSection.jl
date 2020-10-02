@@ -1,6 +1,6 @@
 module CrossSection
 
-export CZcenterline, CUFSMtemplate, CUFSMproperties, CZflange_template
+export CZcenterline, CUFSMtemplate, CUFSMproperties, CZflange_template, shear_stress, shear_force
 
 
 function CZcenterline(H,B1,D1,q1,B2,D2,q2,ri1,ri2,ri3,ri4,t)
@@ -297,6 +297,8 @@ function CUFSMproperties(node, elem)
 	#not matching CUFSM output exactly, need to check
 	#because CUTWP function is used instead...
 
+	#giving wrong answer for Cw and shear center when there is an isolated flange...
+
     #Translated from CUFSM v5.01, thanks Ben.
 	# %[A,xcg,zcg,Ixx,Izz,Ixz,thetap,I11,I22]=grosprop(node,elem)
 	# %Program to compute the sectional properties of thin walled member.
@@ -487,7 +489,7 @@ function CUFSMproperties(node, elem)
 	Bx=(1/Ixc)*Bx-2*(Ys)
 	By=(1/Iyc)*By-2*(Xs)
 
-	return A, xc, yc, Ixc, Iyc, Ixyc, Imax, Imin, Th_p, Cw, J, Xs, Ys, w, Bx, By, B1, B2
+	return A, xc, yc, Ixc, Iyc, Ixyc, Imax, Imin, Th_p, Cw, J, Xs, Ys, w, Bx, By, B1, B2, VX, VY, Ai
 
 end
 
@@ -513,5 +515,26 @@ function CZflange_template(CorZ,H,Bc,Bt,Dc,Dt,r1,r2,r3,r4,θc,θt,t,nh,nb1,nb2,n
     return nodeflange, elemflange
 
 end
+
+function shear_stress(V, Q, I, t)   #not working for Z section, only singly symmetric it seems
+
+    τ = (V * Q) /(I * t)
+
+    return τ
+
+end
+
+#integrate shear stress
+function shear_force(τ, dA)
+
+	V = 0.0
+	for i = 1:length(τ) - 1
+	    V = V + τ[i]*dA[i] + 1/2*(τ[i+1] - τ[i])*dA[i]
+	end
+
+	return V
+
+end
+
 
 end #module

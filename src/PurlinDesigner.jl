@@ -298,15 +298,23 @@ function lineStrength(ASDorLRFD, gravityOrUplift, memberDefinitions, sectionProp
 end
 
 
+function free_flange_stiffness(t, E, H)
 
-function free_flange_define(MemberDefinitions, MaterialProperties, CrossSectionDimensions, Mxx, Vyy, Ixx)
+    Icantilever = 1/12*t^3   #length^4/length for distributed spring
+    kxf = 3*E*Icantilever/H^3
+    kϕf = E*Icantilever/H
+
+    return kxf, kϕf
+
+end
+
+
+function free_flange_define(MemberDefinitions, MaterialProperties, CrossSectionDimensions, Mxx)
 
 
     dz, z, dm = BeamMesh.define(MemberDefinitions)
 
     numnodes = length(z)
-
-
 
     CorZ = CrossSectionDimensions[1][6] + 1
     H = CrossSectionDimensions[1][2]
@@ -328,11 +336,9 @@ function free_flange_define(MemberDefinitions, MaterialProperties, CrossSectionD
 
     FlangeProperties = [(Af, Ixcf, Iycf, Jf, Cwf, xo, yo)]
 
-    E = MaterialProperties[1][1]
+    E = MaterialProperties[1][1]   #consider generalizing this someday
 
-    Icantilever = 1/12*t^3   #length^4/length for distributed spring
-    kxf = 3*E*Icantilever/H^3
-    kϕf = E*Icantilever/H
+    kxf, kϕf = free_flange_stiffness(t, E, H)
 
     #kx ky kϕ hx hy
     Springs = [(kxf*ones(numnodes)),(0.0*ones(numnodes)), (kϕf*ones(numnodes)),(0.0*ones(numnodes)),(0.0*ones(numnodes))]
@@ -340,20 +346,20 @@ function free_flange_define(MemberDefinitions, MaterialProperties, CrossSectionD
     #approximate axial force in flange
     P = Mxx ./ H
 
-    #There is shear flow in the free flange of a C, not in a Z.
-
-    if CorZ == 1  #C
-
-        qx = (Vyy .* Af .* (H/2 .- ycf)) ./ Ixx * (Af ./ t) / [dz[1]/2 dz[2:end-1] dz[end]/2]  #distributed force in flange from shear flow
-
-    elseif CorZ == 2  #Z
-
-        qx = 0.00001 * ones(numnodes)   #small initial imperfection for a Z
-
-    end
+    # #There is shear flow in the free flange of a C, not in a Z.
+    #
+    # if CorZ == 1  #C
+    #
+    #     qx = (Vyy .* Af .* (H/2 .- ycf)) ./ Ixx * (Af ./ t) / [dz[1]/2 dz[2:end-1] dz[end]/2]  #distributed force in flange from shear flow
+    #
+    # elseif CorZ == 2  #Z
+    #
+    #     qx = 0.00001 * ones(numnodes)   #small initial imperfection for a Z
+    #
+    # end
 
     #P qx qy ax ay
-    Loads = [P, qx, (0.0*ones(numnodes)),(-xc*ones(numnodes)),(yc*ones(numnodes))]
+    Loads = [P, (0.0*ones(numnodes)), (0.0*ones(numnodes)),(-xcf*ones(numnodes)),(ycf*ones(numnodes))]
 
     return FlangeProperties, Springs, Loads
 
