@@ -124,8 +124,8 @@ BracingProperties = [(kx,kϕ, 7468.0, 7468.0)];
 
 GravityOrUplift=1   #GravityOrUplift=0 for gravity loading
 
-using Plots
-plot(z, ϕ)
+# using Plots
+# plot(z, ϕ)
 
 
 
@@ -133,16 +133,32 @@ eqn, z, beamProperties, deformation, strengths, forces, interactions, demand_to_
 
 FailurePressure=eqn/PurlinSpacing*10^6   #N/m^2
 
+#
+# plot(z, forces.Mxx)
+#
+# using Plots
+# plot(node[:, 2], node[:, 3])
 
-plot(z, forces.Mxx)
 
-using Plots
-plot(node[:, 2], node[:, 3])
-
-
-#A Ix Iy J Cw xo yo
+#A Ix Iy J Cw xc yc xs ys
 
 FlangeProperties, Springs, Loads = PurlinDesigner.free_flange_define(MemberDefinitions, MaterialProperties, CrossSectionDimensions, forces.Mxx)
 
 
-u, v, ϕ, properties = BeamColumn.solve(MemberDefinitions, SectionProperties, MaterialProperties, Loads, Springs, EndBoundaryConditions, Supports)
+Loads[1] = 0.0*zeros(101)
+
+u, v, ϕ, properties = BeamColumn.solve(MemberDefinitions, FlangeProperties, MaterialProperties, Loads, Springs, EndBoundaryConditions, Supports)
+
+Syc = properties.Iy[1]/properties.xc[1]
+My_yy = Fy*Syc
+
+Myy = InternalForces.moment(properties.z, properties.dm, u, properties.E, properties.Iy)
+
+plot(properties.z, Myy./My_yy)
+
+
+
+
+
+using Plots
+plot(properties.z, u)

@@ -329,12 +329,16 @@ function free_flange_define(MemberDefinitions, MaterialProperties, CrossSectionD
     n = 4
 
     node, elem = CrossSection.CZflange_template(CorZ,H,Bc,Bc,Dc,Dc,r,r,r,r,θc,θc,t,n,n,n,n,n,n,n,n,n,kipin,center)
-        Af, xcf, ycf, Ixcf, Iycf, Ixycf, Imaxf, Iminf, Th_pf, Cwf, Jf, Xsf, Ysf, wf, Bxf, Byf, B1f, B2f = CrossSection.CUFSMproperties(node, elem)
 
-    xo = Xsf - xcf
-    yo = ycf - Ysf
 
-    FlangeProperties = [(Af, Ixcf, Iycf, Jf, Cwf, xo, yo)]
+    coords = node[:, 2:3]
+    ends = elem[:, 2:4]
+
+    Af,xcf,ycf,Ixf,Iyf,Ixyf,thetaf,I1f,I2f,Jf,xsf,ysf,Cwf,B1f,B2f,wnf = CrossSection.CUFSMsection_properties(coords, ends)
+
+
+
+    FlangeProperties = [(Af, Ixf, Iyf, Jf, Cwf, xcf, ycf, xsf, ysf)]
 
     E = MaterialProperties[1][1]   #consider generalizing this someday
 
@@ -344,7 +348,7 @@ function free_flange_define(MemberDefinitions, MaterialProperties, CrossSectionD
     Springs = [(kxf*ones(numnodes)),(0.0*ones(numnodes)), (kϕf*ones(numnodes)),(0.0*ones(numnodes)),(0.0*ones(numnodes))]
 
     #approximate axial force in flange
-    P = Mxx ./ H
+    P = -Mxx ./ H
 
     # #There is shear flow in the free flange of a C, not in a Z.
     #
@@ -359,7 +363,7 @@ function free_flange_define(MemberDefinitions, MaterialProperties, CrossSectionD
     # end
 
     #P qx qy ax ay
-    Loads = [P, (0.0*ones(numnodes)), (0.0*ones(numnodes)),(-xcf*ones(numnodes)),(ycf*ones(numnodes))]
+    Loads = [P, (-1.0*ones(numnodes)), (0.0*ones(numnodes)),(0.0*ones(numnodes)),(0.0*ones(numnodes))]
 
     return FlangeProperties, Springs, Loads
 

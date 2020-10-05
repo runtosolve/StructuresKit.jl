@@ -159,9 +159,16 @@ function define(MemberDefinitions, SectionProperties, MaterialProperties, Loads,
    Iy = BeamMesh.propvector(MemberDefinitions, dm, dz, SectionProperties, 3, 3)
    J = BeamMesh.propvector(MemberDefinitions, dm, dz, SectionProperties, 3, 4)
    Cw = BeamMesh.propvector(MemberDefinitions, dm, dz, SectionProperties, 3, 5)
+   xc = BeamMesh.propvector(MemberDefinitions, dm, dz, SectionProperties, 3, 6)
+   yc = BeamMesh.propvector(MemberDefinitions, dm, dz, SectionProperties, 3, 7)
+   xs = BeamMesh.propvector(MemberDefinitions, dm, dz, SectionProperties, 3, 8)
+   ys = BeamMesh.propvector(MemberDefinitions, dm, dz, SectionProperties, 3, 9)
 
-   xo = BeamMesh.propvector(MemberDefinitions, dm, dz, SectionProperties, 3, 6)
-   yo = BeamMesh.propvector(MemberDefinitions, dm, dz, SectionProperties, 3, 7)
+   xo = xs .- xc
+   yo = ys .- yc
+
+   # xo = BeamMesh.propvector(MemberDefinitions, dm, dz, SectionProperties, 3, 6)
+   # yo = BeamMesh.propvector(MemberDefinitions, dm, dz, SectionProperties, 3, 7)
 
    Io = Ix .+ Iy .+ A .* (xo.^2 + yo.^2)
 
@@ -237,17 +244,17 @@ function define(MemberDefinitions, SectionProperties, MaterialProperties, Loads,
    FixedDOF  = convert(Array,FixedDOF)
    FreeDOF = setdiff(1:NumberOfNodes,FixedDOF)
 
-   A = [A11[FreeDOF,FreeDOF] A12[FreeDOF,FreeDOF] A13[FreeDOF,FreeDOF];
+   Am = [A11[FreeDOF,FreeDOF] A12[FreeDOF,FreeDOF] A13[FreeDOF,FreeDOF];
       A21[FreeDOF,FreeDOF] A22[FreeDOF,FreeDOF] A23[FreeDOF,FreeDOF];
       A31[FreeDOF,FreeDOF] A32[FreeDOF,FreeDOF] A33[FreeDOF,FreeDOF]]
 
-   B = [B1[FreeDOF]; B2[FreeDOF]; B3[FreeDOF]]
+   Bm = [B1[FreeDOF]; B2[FreeDOF]; B3[FreeDOF]]
 
 
-   properties = NamedTuple{(:dm, :z, :P, :Ix, :Iy, :J, :Cw, :xo, :yo, :Io, :E, :ν, :G, :ax, :ay, :kx, :ky, :kϕ, :hx, :hy, :qx, :qy)}((dm, z, P, Ix, Iy, J, Cw, xo, yo, Io, E, ν, G, ax, ay, kx, ky, kϕ, hx, hy, qx, qy))
+   properties = NamedTuple{(:dm, :z, :P, :A, :Ix, :Iy, :J, :Cw, :xc, :yc, :xs, :ys, :xo, :yo, :Io, :E, :ν, :G, :ax, :ay, :kx, :ky, :kϕ, :hx, :hy, :qx, :qy)}((dm, z, P, A, Ix, Iy, J, Cw, xc, yc, xs, ys, xo, yo, Io, E, ν, G, ax, ay, kx, ky, kϕ, hx, hy, qx, qy))
 
 
-   return A, B, FreeDOF, properties
+   return Am, Bm, FreeDOF, properties
 
 end
 
