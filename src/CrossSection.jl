@@ -771,7 +771,7 @@ function CZflange_template(CorZ,H,Bc,Bt,Dc,Dt,r1,r2,r3,r4,θc,θt,t,nh,nb1,nb2,n
     index_xo = findall(x-> x==0.0, node[:, 2])
     index_yo = findall(y-> y==0.0, node[:, 3])
     index_o = intersect(index_xo, index_yo)
-    index = 1:index_o[1]
+    index = 1:(index_o[1]+1)
 
 	nodeflange = node[index,:]
     elemflange = elem[index[1:end-1],:]

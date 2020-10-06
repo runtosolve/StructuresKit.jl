@@ -29,16 +29,17 @@ function h411(Cw, Fy, Wn, Bcrℓ, ASDorLRFD)
 end
 
 
-function h42(Mxbar,Mybar,Bbar,Maxℓo,Mayℓo,Ba)
+function h42(Mxbar,Mybar,Bbar,Mybar_freeflange, Maxℓo,Mayℓo,Ba, Mayℓo_freeflange)
 
 
     ActionMx = abs.(Mxbar./(Maxℓo))
     ActionMy = abs.(Mybar./(Mayℓo))
     ActionB = abs.(Bbar./(Ba))
+    ActionMy_freeflange = abs.(Mybar_freeflange./(Mayℓo_freeflange))
 
-    Interaction = ActionMx .+ ActionMy .+ ActionB
+    Interaction = ActionMx .+ ActionMy .+ ActionB .+ ActionMy_freeflange
 
-    return ActionMx, ActionMy, ActionB, Interaction
+    return ActionMx, ActionMy, ActionB, ActionMy_freeflange, Interaction
 
 end
 

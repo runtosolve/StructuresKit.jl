@@ -70,8 +70,7 @@ h = ho - 2*(r+t)
 CorZ = dims[i, 13]
 
 
-CrossSectionDimensions =
-[(t, ho, b, d, θ , CorZ, h)];
+
 
 
 #ax ay
@@ -90,6 +89,9 @@ Xs_loc = Xc+Xs
 Ys_loc = Yc+Ys
 
 c = dims[i, 14]
+
+CrossSectionDimensions =
+[(t, ho, b, d, θ , CorZ, h, c)];
 
 #for a C
 if CorZ == 0
@@ -142,17 +144,22 @@ FailurePressure=eqn/PurlinSpacing*10^6   #N/m^2
 
 #A Ix Iy J Cw xc yc xs ys
 
-FlangeProperties, Springs, Loads = PurlinDesigner.free_flange_define(MemberDefinitions, MaterialProperties, CrossSectionDimensions, forces.Mxx)
+FlangeProperties, Springs, Loads = PurlinDesigner.free_flange_define(MemberDefinitions, SectionProperties, MaterialProperties, CrossSectionDimensions, BracingProperties, eqn, forces.Mxx)
 
 
-Loads[1] = 0.0*zeros(101)
+# Loads[1] = 0.0*zeros(101)
 
 u, v, ϕ, properties = BeamColumn.solve(MemberDefinitions, FlangeProperties, MaterialProperties, Loads, Springs, EndBoundaryConditions, Supports)
+
+plot(z, u)
+Myy = InternalForces.moment(properties.z, properties.dm, u, properties.E, properties.Iy)
+plot(z, Myy)
+
 
 Syc = properties.Iy[1]/properties.xc[1]
 My_yy = Fy*Syc
 
-Myy = InternalForces.moment(properties.z, properties.dm, u, properties.E, properties.Iy)
+
 
 plot(properties.z, Myy./My_yy)
 

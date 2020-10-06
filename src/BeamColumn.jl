@@ -164,11 +164,8 @@ function define(MemberDefinitions, SectionProperties, MaterialProperties, Loads,
    xs = BeamMesh.propvector(MemberDefinitions, dm, dz, SectionProperties, 3, 8)
    ys = BeamMesh.propvector(MemberDefinitions, dm, dz, SectionProperties, 3, 9)
 
-   xo = xs .- xc
-   yo = ys .- yc
-
-   # xo = BeamMesh.propvector(MemberDefinitions, dm, dz, SectionProperties, 3, 6)
-   # yo = BeamMesh.propvector(MemberDefinitions, dm, dz, SectionProperties, 3, 7)
+   xo = -(xc .- xs)
+   yo = yc .- ys
 
    Io = Ix .+ Iy .+ A .* (xo.^2 + yo.^2)
 

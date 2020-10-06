@@ -21,7 +21,7 @@ export lineStrength, free_flange_define
 
 
 #calculated section strengths along a purlin line
-function sectionStrengths(ASDorLRFD, dz, dm, memberDefinitions, sectionProperties, crossSectionDimensions, materialProperties, loadLocation, bracingProperties, roofSlope)
+function sectionStrengths(ASDorLRFD, dz, dm, memberDefinitions, sectionProperties, crossSectionDimensions, materialProperties, loadLocation, bracingProperties, roofSlope, FlangeProperties)
 
     numberOfNodes = length(dz)+1
 
@@ -122,27 +122,50 @@ function sectionStrengths(ASDorLRFD, dz, dm, memberDefinitions, sectionPropertie
         Vn[i], eVn[i] = AISIS10016.g21(E[i], h[i], t[i], Fy[i], Vcr[i], ASDorLRFD)
     end
 
+
+    #define free flange properties
+    Iyyf = BeamMesh.propvector(memberDefinitions, dm, dz, FlangeProperties, 3, 2)
+    xcf = BeamMesh.propvector(memberDefinitions, dm, dz, FlangeProperties, 3, 6)
+
+
+    #Free flange strength
+    #Assume yield criterion for now, no local buckling...
+    Sycf_tension = Iyyf ./abs.(xcf)
+    Sycf_comp = Iyyf ./((b .+d .*cos.(deg2rad.(θc)) .- t/2) .-abs.(xcf))
+    Sycf = min.([Sycf_tension Sycf_comp])
+    My_yyf = Fy.*Sycf
+    Mcrℓ_yyf = 999999999999999.0  #no local buckling right now
+
+
+    Mnℓyy_freeflange = zeros(Float64, numberOfNodes)
+    eMnℓyy_freeflange = zeros(Float64, numberOfNodes)
+    for i in eachindex(Mnℓyy_freeflange)
+        Mnℓyy_freeflange[i], eMnℓyy_freeflange[i] = AISIS10016.f321(My_yyf[i], Mcrℓ_yyf, ASDorLRFD)
+    end
+
+
     #note nominal capacities are divided by ASD safety factor or
     #multiplied by LRFD resistance factor here
-    return eMnℓxx, eMnℓyy, eBn, eMnd, eVn
+    return eMnℓxx, eMnℓyy, eBn, eMnd, eVn, eMnℓyy_freeflange
 
 end
 
 #find flexure+torsion D/C
-function bendingTorsionDemandToCapacity(Mxx, Myy, B, eMnℓxx, eMnℓyy, eBn)
+function bendingTorsionDemandToCapacity(Mxx, Myy, B, Myy_freeflange, eMnℓxx, eMnℓyy, eBn, eMnℓyy_freeflange)
 
     #check bending + torsion interaction
     #ActionM1, ActionM2, ActionB, Interaction
-    interactionCheck = AISIS10024.h42.(Mxx,Myy,B,eMnℓxx,eMnℓyy,eBn)
+    interactionCheck = AISIS10024.h42.(Mxx, Myy, B, Myy_freeflange, eMnℓxx, eMnℓyy, eBn, eMnℓyy_freeflange)
 
     actionMxx = [x[1] for x in interactionCheck]
     actionMyy = [x[2] for x in interactionCheck]
     actionB = [x[3] for x in interactionCheck]
-    totalInteraction = [x[4] for x in interactionCheck]
+    actionMyy_freeflange = [x[4] for x in interactionCheck]
+    totalInteraction = [x[5] for x in interactionCheck]
 
-    demandToCapacity = totalInteraction./1.00
+    demandToCapacity = totalInteraction./1.15
 
-    return actionMxx, actionMyy, actionB, totalInteraction, demandToCapacity
+    return actionMxx, actionMyy, actionB, actionMyy_freeflange, totalInteraction, demandToCapacity
 
 end
 
@@ -186,19 +209,27 @@ function biaxialBendingDemandToCapacity(Mxx, Myy, eMnℓxx, eMnℓyy)
 end
 
 #purlin line demand to capacity
-function lineDC(memberDefinitions, sectionProperties, materialProperties, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad, eMnℓxx, eMnℓyy, eBn, eMnd, eVn)
+function lineDC(memberDefinitions, sectionProperties, materialProperties, crossSectionDimensions, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad, eMnℓxx, eMnℓyy, eBn, eMnd, eVn, eMnℓyy_freeflange)
 
+    #Calculate purlin line deformation and demands.
     z, u, v, ϕ, beamProperties = PlautBeam.solve(memberDefinitions, sectionProperties, materialProperties, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad)
-
     Mxx = InternalForces.moment(z, beamProperties.dm, -v, beamProperties.E, beamProperties.Ix)
     Myy = InternalForces.moment(z, beamProperties.dm, -u, beamProperties.E, beamProperties.Iy)
     Vyy = InternalForces.shear(z, beamProperties.dm, -v, beamProperties.E, beamProperties.Ix)
     B = InternalForces.bimoment(z, beamProperties.dm, ϕ, beamProperties.E, beamProperties.Cw)
 
-    BTActionM1, BTActionM2, BTActionB, BTTotalInteraction, BTDemandToCapacity = bendingTorsionDemandToCapacity(Mxx, Myy, B, eMnℓxx, eMnℓyy, eBn)
+    #Calculate free flange behavior with shear flow and flexural-torsional buckling.
+    FlangeProperties, Springs, Loads = PurlinDesigner.free_flange_define(memberDefinitions, sectionProperties, materialProperties, crossSectionDimensions, bracingProperties, uniformLoad[2], Mxx)
+    uf, vf, ϕf, FreeFlangeProperties = BeamColumn.solve(memberDefinitions, FlangeProperties, materialProperties, Loads, Springs, endBoundaryConditions, supports)
+    Myyf = InternalForces.moment(z, beamProperties.dm, -uf, FreeFlangeProperties.E, FreeFlangeProperties.Iy)
+
+    #Get limit state interactions and demand-to-capacities along the purlin line.
+    BTActionMxx, BTActionMyy, BTActionB, BTActionMyy_freeflange, BTTotalInteraction, BTDemandToCapacity = bendingTorsionDemandToCapacity(Mxx, Myy, B, Myyf, eMnℓxx, eMnℓyy, eBn, eMnℓyy_freeflange)
     distDemandToCapacity = distortionalDemandToCapacity(Mxx,eMnd)
     MVDemandToCapacity = bendingShearDemandToCapacity(Vyy, Mxx, eMnℓxx, eVn)
     BBActionP, BBActionM1, BBActionM2, BBTotalInteraction, BBDemandToCapacity = biaxialBendingDemandToCapacity(Mxx, Myy, eMnℓxx, eMnℓyy)
+
+    #Find worst case demand-to-capacity ratio along the purlin line.
     purlinDemandToCapacity=maximum([BTDemandToCapacity; distDemandToCapacity; MVDemandToCapacity; BBDemandToCapacity])
 
     return purlinDemandToCapacity
@@ -206,7 +237,7 @@ function lineDC(memberDefinitions, sectionProperties, materialProperties, loadLo
 end
 
 #purlin line load that causes failure
-function rootfinder(q, eps, residual, demandToCapacity, memberDefinitions, sectionProperties, materialProperties, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad, eMnℓxx, eMnℓyy, eBn, eMnd, eVn, loadAngle)
+function rootfinder(q, eps, residual, demandToCapacity, memberDefinitions, sectionProperties, materialProperties, crossSectionDimensions, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad, eMnℓxx, eMnℓyy, eBn, eMnd, eVn, loadAngle, eMnℓyy_freeflange)
 
     #use bisection method of rootfinding to solve for purlin strength
 
@@ -221,7 +252,8 @@ function rootfinder(q, eps, residual, demandToCapacity, memberDefinitions, secti
         qy = q*cos(deg2rad(loadAngle))
         uniformLoad=(qx,qy)
 
-        demandToCapacity=lineDC(memberDefinitions, sectionProperties, materialProperties, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad, eMnℓxx, eMnℓyy, eBn, eMnd, eVn)
+
+        demandToCapacity=lineDC(memberDefinitions, sectionProperties, materialProperties, crossSectionDimensions, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad, eMnℓxx, eMnℓyy, eBn, eMnd, eVn, eMnℓyy_freeflange)
 
         residual=1.0 - abs(demandToCapacity)
 
@@ -238,11 +270,16 @@ end
 function lineStrength(ASDorLRFD, gravityOrUplift, memberDefinitions, sectionProperties, crossSectionDimensions, materialProperties, loadLocation, bracingProperties, roofSlope, endBoundaryConditions, supports)
 
     dz, z, dm = BeamMesh.define(memberDefinitions)
+    numnodes = length(z)
 
-    #calculate expected capacities
-    eMnℓxx, eMnℓyy, eBn, eMnd,  eVn  = sectionStrengths(ASDorLRFD, dz, dm, memberDefinitions, sectionProperties, crossSectionDimensions, materialProperties, loadLocation, bracingProperties, roofSlope)
+    #Calculate free flange available strengths.
+    FlangeProperties, Springs, Loads = PurlinDesigner.free_flange_define(memberDefinitions, sectionProperties, materialProperties, crossSectionDimensions, bracingProperties, 0.0, zeros(Float64, numnodes))
 
-    #use rootfinding to solve for expected strength
+
+    #Calculate purlin available strengths.
+    eMnℓxx, eMnℓyy, eBn, eMnd,  eVn, eMnℓyy_freeflange  = sectionStrengths(ASDorLRFD, dz, dm, memberDefinitions, sectionProperties, crossSectionDimensions, materialProperties, loadLocation, bracingProperties, roofSlope, FlangeProperties)
+
+    #Use rootfinding to solve for purlin line available strength.
 
     #pick a small load
     if gravityOrUplift==0
@@ -257,14 +294,14 @@ function lineStrength(ASDorLRFD, gravityOrUplift, memberDefinitions, sectionProp
     qx = -q*sin(deg2rad(loadAngle))
     qy = q*cos(deg2rad(loadAngle))
     uniformLoad = (qx,qy)
-    demandToCapacity = lineDC(memberDefinitions, sectionProperties, materialProperties, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad, eMnℓxx, eMnℓyy, eBn, eMnd, eVn)
+    demandToCapacity = lineDC(memberDefinitions, sectionProperties, materialProperties, crossSectionDimensions, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad, eMnℓxx, eMnℓyy, eBn, eMnd, eVn, eMnℓyy_freeflange)
 
     #initialize residual for rootfinding
     residual=abs(1.0-demandToCapacity)
     eps=0.01  #residual tolerance, hard coded for now
 
     #this spits out the expected failure load
-    eqn = rootfinder(q, eps, residual, demandToCapacity, memberDefinitions, sectionProperties, materialProperties, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad, eMnℓxx, eMnℓyy, eBn, eMnd, eVn, loadAngle)
+    eqn = rootfinder(q, eps, residual, demandToCapacity, memberDefinitions, sectionProperties, materialProperties, crossSectionDimensions, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad, eMnℓxx, eMnℓyy, eBn, eMnd, eVn, loadAngle, eMnℓyy_freeflange)
 
     qx = -eqn*sin(deg2rad(loadAngle))
     qy = eqn*cos(deg2rad(loadAngle))
@@ -280,16 +317,22 @@ function lineStrength(ASDorLRFD, gravityOrUplift, memberDefinitions, sectionProp
     T = InternalForces.torsion(z, beamProperties.dm, ϕ, beamProperties.E, beamProperties.G, beamProperties.J, beamProperties.Cw)
     B = InternalForces.bimoment(z, beamProperties.dm, ϕ, beamProperties.E, beamProperties.Cw)
 
-    BTActionMxx, BTActionMyy, BTActionB, BTTotalInteraction, BTDemandToCapacity = bendingTorsionDemandToCapacity(Mxx, Myy, B, eMnℓxx, eMnℓyy, eBn)
+    #Calculate free flange behavior with shear flow and flexural-torsional buckling.
+    FlangeProperties, Springs, Loads = PurlinDesigner.free_flange_define(memberDefinitions, sectionProperties, materialProperties, crossSectionDimensions, bracingProperties, uniformLoad[2], Mxx)
+    uf, vf, ϕf, FreeFlangeProperties = BeamColumn.solve(memberDefinitions, FlangeProperties, materialProperties, Loads, Springs, endBoundaryConditions, supports)
+
+    Myyf = InternalForces.moment(z, beamProperties.dm, -uf, FreeFlangeProperties.E, FreeFlangeProperties.Iy)
+
+    #Get limit state interactions and demand-to-capacities along the purlin line.
+    BTActionMxx, BTActionMyy, BTActionB, BTActionMyy_freeflange, BTTotalInteraction, BTDemandToCapacity = bendingTorsionDemandToCapacity(Mxx, Myy, B, Myyf, eMnℓxx, eMnℓyy, eBn, eMnℓyy_freeflange)
     distDemandToCapacity = distortionalDemandToCapacity(Mxx,eMnd)
     MVDemandToCapacity = bendingShearDemandToCapacity(Vyy, Mxx, eMnℓxx, eVn)
     BBActionP, BBActionMxx, BBActionMyy, BBTotalInteraction, BBDemandToCapacity = biaxialBendingDemandToCapacity(Mxx, Myy, eMnℓxx, eMnℓyy)
-    demandToCapacity=maximum([BTDemandToCapacity; distDemandToCapacity; MVDemandToCapacity; BBDemandToCapacity])
 
-    deformation = NamedTuple{(:u, :v, :ϕ)}((u, v, ϕ))
-    strengths = NamedTuple{(:eMnℓxx, :eMnℓyy, :eBn, :eMnd, :eVn)}((eMnℓxx, eMnℓyy, eBn, eMnd, eVn))
-    forces = NamedTuple{(:Mxx, :Myy, :Vyy, :T, :B)}((Mxx, Myy, Vyy, T, B))
-    interactions = NamedTuple{(:BTMxx, :BTMyy, :BTB, :BTTotal, :BBP, :BBMxx, :BBMyy, :BBTotal)}((BTActionMxx, BTActionMyy, BTActionB, BTTotalInteraction, BBActionP, BBActionMxx, BBActionMyy, BBTotalInteraction))
+    deformation = NamedTuple{(:u, :v, :ϕ, :uf, :vf, :ϕf)}((u, v, ϕ, uf, vf, ϕf))
+    strengths = NamedTuple{(:eMnℓxx, :eMnℓyy, :eBn, :eMnd, :eVn, :eMnℓyy_freeflange)}((eMnℓxx, eMnℓyy, eBn, eMnd, eVn, eMnℓyy_freeflange))
+    forces = NamedTuple{(:Mxx, :Myy, :Vyy, :T, :B, :Myyf)}((Mxx, Myy, Vyy, T, B, Myyf))
+    interactions = NamedTuple{(:BTMxx, :BTMyy, :BTB, :BTMyy_freeflange, :BTTotal, :BBP, :BBMxx, :BBMyy, :BBTotal)}((BTActionMxx, BTActionMyy, BTActionB, BTActionMyy_freeflange, BTTotalInteraction, BBActionP, BBActionMxx, BBActionMyy, BBTotalInteraction))
     demand_to_capacity = NamedTuple{(:BT, :dist, :MV, :BB, :envelope)}((BTDemandToCapacity, distDemandToCapacity, MVDemandToCapacity, BBDemandToCapacity, demandToCapacity))
 
 
@@ -298,10 +341,15 @@ function lineStrength(ASDorLRFD, gravityOrUplift, memberDefinitions, sectionProp
 end
 
 
-function free_flange_stiffness(t, E, H)
+function free_flange_stiffness(t, E, H, kϕc)
 
     Icantilever = 1/12*t^3   #length^4/length for distributed spring
-    kxf = 3*E*Icantilever/H^3
+
+
+    #Use Eq. 16 from Gao and Moen (2013) https://ascelibrary.org/doi/abs/10.1061/(ASCE)ST.1943-541X.0000860
+    #kxf = 3*E*Icantilever/H^3
+    kxf = 1/(H^2/kϕc + (H^3/(3*E*Icantilever)))
+
     kϕf = E*Icantilever/H
 
     return kxf, kϕf
@@ -309,7 +357,7 @@ function free_flange_stiffness(t, E, H)
 end
 
 
-function free_flange_define(MemberDefinitions, MaterialProperties, CrossSectionDimensions, Mxx)
+function free_flange_define(MemberDefinitions, SectionProperties, MaterialProperties, CrossSectionDimensions, BracingProperties, q, Mxx)
 
 
     dz, z, dm = BeamMesh.define(MemberDefinitions)
@@ -326,7 +374,7 @@ function free_flange_define(MemberDefinitions, MaterialProperties, CrossSectionD
     r = 0.0
     kipin = 0
     center = 0
-    n = 4
+    n = 5
 
     node, elem = CrossSection.CZflange_template(CorZ,H,Bc,Bc,Dc,Dc,r,r,r,r,θc,θc,t,n,n,n,n,n,n,n,n,n,kipin,center)
 
@@ -342,28 +390,46 @@ function free_flange_define(MemberDefinitions, MaterialProperties, CrossSectionD
 
     E = MaterialProperties[1][1]   #consider generalizing this someday
 
-    kxf, kϕf = free_flange_stiffness(t, E, H)
+    kϕc = BracingProperties[1][2]
+
+    kxf, kϕf = free_flange_stiffness(t, E, H, kϕc)
 
     #kx ky kϕ hx hy
     Springs = [(kxf*ones(numnodes)),(0.0*ones(numnodes)), (kϕf*ones(numnodes)),(0.0*ones(numnodes)),(0.0*ones(numnodes))]
 
     #approximate axial force in flange
-    P = -Mxx ./ H
+    P = -Mxx ./ ((H -t) - 2 * abs(ycf))
 
-    # #There is shear flow in the free flange of a C, not in a Z.
-    #
-    # if CorZ == 1  #C
-    #
-    #     qx = (Vyy .* Af .* (H/2 .- ycf)) ./ Ixx * (Af ./ t) / [dz[1]/2 dz[2:end-1] dz[end]/2]  #distributed force in flange from shear flow
-    #
-    # elseif CorZ == 2  #Z
-    #
-    #     qx = 0.00001 * ones(numnodes)   #small initial imperfection for a Z
-    #
-    # end
+    #There is shear flow in the free flange of a restrained C or Z.
+    #Use Eq. 13b and 15 from Gao and Moen (2013) https://ascelibrary.org/doi/abs/10.1061/(ASCE)ST.1943-541X.0000860
+
+    Ix = SectionProperties[1][1]
+    c = CrossSectionDimensions[1][8]
+    b = Bc - c
+
+    if CorZ == 1  #C
+
+        kH = ((Bc^2*t*H^2)/(4*Ix) + b)/H
+
+        if xcf > 0   #if flange is oriented left to right from web
+            kH = -kH
+        end
+
+
+    elseif CorZ == 2  #Z
+
+        kH = (H*t*(Bc^2 + 2*Dc*Bc - (2*Dc^2*Bc)/H))/(4*Ix)
+
+        if xcf > 0   #if flange is oriented left to right from web
+            kH = -kH
+        end
+
+    end
+
+    qx = q .* kH
 
     #P qx qy ax ay
-    Loads = [P, (-1.0*ones(numnodes)), (0.0*ones(numnodes)),(0.0*ones(numnodes)),(0.0*ones(numnodes))]
+    Loads = [P, (qx*ones(numnodes)), (0.0*ones(numnodes)),(0.0*ones(numnodes)),(ycf*ones(numnodes))]
 
     return FlangeProperties, Springs, Loads
 
