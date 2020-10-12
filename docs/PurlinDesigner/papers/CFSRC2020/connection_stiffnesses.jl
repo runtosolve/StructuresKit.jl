@@ -64,7 +64,7 @@ for i = 1:14
         #This nomenclature is consistent with AISI S100-16.
 
         #t, ho, b, d, θ, CorZ, h
-        b = dims[i,1]
+        bflange = dims[i,1]
         d = dims[i,2]
         θ = dims[i,4]
         ho = dims[i,9]
@@ -74,8 +74,8 @@ for i = 1:14
         CorZ = dims[i, 13]
 
 
-        CrossSectionDimensions =
-        [(t, ho, b, d, θ , CorZ, h)];
+        # CrossSectionDimensions =
+        # [(t, ho, b, d, θ , CorZ, h)];
 
 
         #ax ay
@@ -94,6 +94,7 @@ for i = 1:14
         Ys_loc = Yc+Ys
 
         c = dims[i, 14]
+        b = bflange - c
 
         #for a C
         if CorZ == 0
