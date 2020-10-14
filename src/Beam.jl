@@ -1,4 +1,4 @@
-module PlautBeam
+module Beam
 
 using DiffEqOperators: CenteredDifference
 using LinearAlgebra

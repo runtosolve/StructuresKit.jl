@@ -28,9 +28,9 @@ export InternalForces
 include("InternalForces.jl")
 using .InternalForces
 
-export PlautBeam
-include("PlautBeam.jl")
-using .PlautBeam
+export Beam
+include("Beam.jl")
+using .Beam
 
 export PurlinDesigner
 include("PurlinDesigner.jl")

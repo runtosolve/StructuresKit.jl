@@ -131,16 +131,17 @@ for i = 1:14
         # using Plots
         # plot(z, ϕ)
 
+        Bridging = [0 7468.0]
 
 
-        eqn, z, beamProperties, deformation, strengths, forces, interactions, demand_to_capacity = PurlinDesigner.lineStrength(ASDorLRFD, GravityOrUplift, MemberDefinitions, SectionProperties, CrossSectionDimensions, MaterialProperties, LoadLocation, BracingProperties, RoofSlope, EndBoundaryConditions, Supports)
+        eqn, z, beamProperties, deformation, strengths, forces, interactions, demand_to_capacity = PurlinDesigner.lineStrength(ASDorLRFD, GravityOrUplift, MemberDefinitions, SectionProperties, CrossSectionDimensions, MaterialProperties, LoadLocation, BracingProperties, RoofSlope, EndBoundaryConditions, Supports, Bridging)
 
         FailurePressure[i]=eqn/PurlinSpacing*10^6
 
 end
 
 using DelimitedFiles
-filename = "/Users/crismoen/.julia/dev/StructuresKit/docs/PurlinDesigner/papers/CFSRC2020/failurepressureR1.csv"
+filename = "/Users/crismoen/.julia/dev/StructuresKit/docs/PurlinDesigner/papers/CFSRC2020/failurepressureR2.csv"
 writedlm(filename, FailurePressure)
 
 
@@ -154,16 +155,16 @@ writedlm(filename, FailurePressure)
 
 
 #A Ix Iy J Cw xc yc xs ys
-
-
-
-FlangeProperties, Springs, Loads = PurlinDesigner.free_flange_define(MemberDefinitions, SectionProperties, MaterialProperties, CrossSectionDimensions, BracingProperties, eqn, forces.Mxx)
 #
 #
-# # Loads[1] = 0.0*zeros(101)
 #
-u, v, ϕ, properties = BeamColumn.solve(MemberDefinitions, FlangeProperties, MaterialProperties, Loads, Springs, EndBoundaryConditions, Supports)
-#
+# FlangeProperties, Springs, Loads = PurlinDesigner.free_flange_define(MemberDefinitions, SectionProperties, MaterialProperties, CrossSectionDimensions, BracingProperties, eqn, forces.Mxx)
+# #
+# #
+# # # Loads[1] = 0.0*zeros(101)
+# #
+# u, v, ϕ, properties = BeamColumn.solve(MemberDefinitions, FlangeProperties, MaterialProperties, Loads, Springs, EndBoundaryConditions, Supports)
+# #
 # plot(z, u)
 #
 #
