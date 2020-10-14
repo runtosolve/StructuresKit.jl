@@ -66,7 +66,7 @@ for i=1:length(PlautSolution[:,1])
 
     UniformLoad = (0.0, PlautSolution[i,2]/1000)  #kN/mm
 
-    z, u, v, ϕ, BeamProperties = PlautBeam.solve(MemberDefinitions, SectionProperties, MaterialProperties, LoadLocation, SpringStiffness, EndBoundaryConditions, Supports, UniformLoad)
+    z, u, v, ϕ, BeamProperties = Beam.solve(MemberDefinitions, SectionProperties, MaterialProperties, LoadLocation, SpringStiffness, EndBoundaryConditions, Supports, UniformLoad)
 
     ϕmax[i]=maximum(ϕ)
 

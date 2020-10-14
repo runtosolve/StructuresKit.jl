@@ -3,21 +3,13 @@ module PurlinDesigner
 #bring in local modules
 using ..AISIS10016
 using ..AISIS10024
-using ..PlautBeam
+using ..Beam
 using ..InternalForces
 using ..BeamMesh
 using ..BeamColumn
 using ..CrossSection
 
 export lineStrength, free_flange_define
-
-
-#calculate flange section properties
-#calculate flange deflections
-#calculate demand moment on flange
-#calculate flange yield moment
-#calculate demand to capacity
-#include demand to capacity in interaction checks
 
 
 #calculated section strengths along a purlin line
@@ -209,10 +201,10 @@ function biaxialBendingDemandToCapacity(Mxx, Myy, eMnℓxx, eMnℓyy)
 end
 
 #purlin line demand to capacity
-function lineDC(memberDefinitions, sectionProperties, materialProperties, crossSectionDimensions, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad, eMnℓxx, eMnℓyy, eBn, eMnd, eVn, eMnℓyy_freeflange)
+function lineDC(memberDefinitions, sectionProperties, materialProperties, crossSectionDimensions, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad, eMnℓxx, eMnℓyy, eBn, eMnd, eVn, eMnℓyy_freeflange, bridging)
 
     #Calculate purlin line deformation and demands.
-    z, u, v, ϕ, beamProperties = PlautBeam.solve(memberDefinitions, sectionProperties, materialProperties, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad)
+    z, u, v, ϕ, beamProperties = Beam.solve(memberDefinitions, sectionProperties, materialProperties, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad)
     Mxx = InternalForces.moment(z, beamProperties.dm, -v, beamProperties.E, beamProperties.Ix)
     Myy = InternalForces.moment(z, beamProperties.dm, -u, beamProperties.E, beamProperties.Iy)
     Vyy = InternalForces.shear(z, beamProperties.dm, -v, beamProperties.E, beamProperties.Ix)
@@ -220,7 +212,7 @@ function lineDC(memberDefinitions, sectionProperties, materialProperties, crossS
 
     #Calculate free flange behavior with shear flow and flexural-torsional buckling.
     FlangeProperties, Springs, Loads = PurlinDesigner.free_flange_define(memberDefinitions, sectionProperties, materialProperties, crossSectionDimensions, bracingProperties, uniformLoad[2], Mxx)
-    uf, vf, ϕf, FreeFlangeProperties = BeamColumn.solve(memberDefinitions, FlangeProperties, materialProperties, Loads, Springs, endBoundaryConditions, supports)
+    uf, vf, ϕf, FreeFlangeProperties = BeamColumn.solve(memberDefinitions, FlangeProperties, materialProperties, Loads, Springs, endBoundaryConditions, bridging)
     Myyf = InternalForces.moment(z, beamProperties.dm, -uf, FreeFlangeProperties.E, FreeFlangeProperties.Iy)
 
     #Get limit state interactions and demand-to-capacities along the purlin line.
@@ -237,7 +229,7 @@ function lineDC(memberDefinitions, sectionProperties, materialProperties, crossS
 end
 
 #purlin line load that causes failure
-function rootfinder(q, eps, residual, demandToCapacity, memberDefinitions, sectionProperties, materialProperties, crossSectionDimensions, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad, eMnℓxx, eMnℓyy, eBn, eMnd, eVn, loadAngle, eMnℓyy_freeflange)
+function rootfinder(q, eps, residual, demandToCapacity, memberDefinitions, sectionProperties, materialProperties, crossSectionDimensions, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad, eMnℓxx, eMnℓyy, eBn, eMnd, eVn, loadAngle, eMnℓyy_freeflange, bridging)
 
     #use bisection method of rootfinding to solve for purlin strength
 
@@ -253,11 +245,11 @@ function rootfinder(q, eps, residual, demandToCapacity, memberDefinitions, secti
         uniformLoad=(qx,qy)
 
 
-        demandToCapacity=lineDC(memberDefinitions, sectionProperties, materialProperties, crossSectionDimensions, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad, eMnℓxx, eMnℓyy, eBn, eMnd, eVn, eMnℓyy_freeflange)
+        demandToCapacity=lineDC(memberDefinitions, sectionProperties, materialProperties, crossSectionDimensions, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad, eMnℓxx, eMnℓyy, eBn, eMnd, eVn, eMnℓyy_freeflange, bridging)
 
-        residual=1.0 - abs(demandToCapacity)
+        residual = 1.0 - abs(demandToCapacity)
 
-        if residual < eps
+        if abs(residual) < eps
             return q
         end
 
@@ -267,7 +259,7 @@ function rootfinder(q, eps, residual, demandToCapacity, memberDefinitions, secti
 
 end
 
-function lineStrength(ASDorLRFD, gravityOrUplift, memberDefinitions, sectionProperties, crossSectionDimensions, materialProperties, loadLocation, bracingProperties, roofSlope, endBoundaryConditions, supports)
+function lineStrength(ASDorLRFD, gravityOrUplift, memberDefinitions, sectionProperties, crossSectionDimensions, materialProperties, loadLocation, bracingProperties, roofSlope, endBoundaryConditions, supports, bridging)
 
     dz, z, dm = BeamMesh.define(memberDefinitions)
     numnodes = length(z)
@@ -294,14 +286,14 @@ function lineStrength(ASDorLRFD, gravityOrUplift, memberDefinitions, sectionProp
     qx = -q*sin(deg2rad(loadAngle))
     qy = q*cos(deg2rad(loadAngle))
     uniformLoad = (qx,qy)
-    demandToCapacity = lineDC(memberDefinitions, sectionProperties, materialProperties, crossSectionDimensions, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad, eMnℓxx, eMnℓyy, eBn, eMnd, eVn, eMnℓyy_freeflange)
+    demandToCapacity = lineDC(memberDefinitions, sectionProperties, materialProperties, crossSectionDimensions, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad, eMnℓxx, eMnℓyy, eBn, eMnd, eVn, eMnℓyy_freeflange, bridging)
 
     #initialize residual for rootfinding
     residual=abs(1.0-demandToCapacity)
     eps=0.01  #residual tolerance, hard coded for now
 
     #this spits out the expected failure load
-    eqn = rootfinder(q, eps, residual, demandToCapacity, memberDefinitions, sectionProperties, materialProperties, crossSectionDimensions, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad, eMnℓxx, eMnℓyy, eBn, eMnd, eVn, loadAngle, eMnℓyy_freeflange)
+    eqn = rootfinder(q, eps, residual, demandToCapacity, memberDefinitions, sectionProperties, materialProperties, crossSectionDimensions, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad, eMnℓxx, eMnℓyy, eBn, eMnd, eVn, loadAngle, eMnℓyy_freeflange, bridging)
 
     qx = -eqn*sin(deg2rad(loadAngle))
     qy = eqn*cos(deg2rad(loadAngle))
@@ -309,7 +301,7 @@ function lineStrength(ASDorLRFD, gravityOrUplift, memberDefinitions, sectionProp
 
     #calculate all the final properties and deformations for the purlin line, at failure
 
-    z, u, v, ϕ, beamProperties = PlautBeam.solve(memberDefinitions, sectionProperties, materialProperties, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad)
+    z, u, v, ϕ, beamProperties = Beam.solve(memberDefinitions, sectionProperties, materialProperties, loadLocation, bracingProperties, endBoundaryConditions, supports, uniformLoad)
 
     Mxx = InternalForces.moment(z, beamProperties.dm, -v, beamProperties.E, beamProperties.Ix)
     Myy = InternalForces.moment(z, beamProperties.dm, -u, beamProperties.E, beamProperties.Iy)
@@ -319,7 +311,7 @@ function lineStrength(ASDorLRFD, gravityOrUplift, memberDefinitions, sectionProp
 
     #Calculate free flange behavior with shear flow and flexural-torsional buckling.
     FlangeProperties, Springs, Loads = PurlinDesigner.free_flange_define(memberDefinitions, sectionProperties, materialProperties, crossSectionDimensions, bracingProperties, uniformLoad[2], Mxx)
-    uf, vf, ϕf, FreeFlangeProperties = BeamColumn.solve(memberDefinitions, FlangeProperties, materialProperties, Loads, Springs, endBoundaryConditions, supports)
+    uf, vf, ϕf, FreeFlangeProperties = BeamColumn.solve(memberDefinitions, FlangeProperties, materialProperties, Loads, Springs, endBoundaryConditions, bridging)
 
     Myyf = InternalForces.moment(z, beamProperties.dm, -uf, FreeFlangeProperties.E, FreeFlangeProperties.Iy)
 
