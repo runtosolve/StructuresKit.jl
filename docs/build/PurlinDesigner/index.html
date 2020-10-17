@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>PurlinDesigner · StructuresKit.jl</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../"><img src="../assets/logo.png" alt="StructuresKit.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit">StructuresKit.jl</span></div><form class="docs-search" action="../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../">StructuresKit</a></li><li><a class="tocitem" href="../AISIS10016/">AISIS10016</a></li><li><a class="tocitem" href="../AISIS10024/">AISIS10024</a></li><li><a class="tocitem" href="../Beam/">Beam</a></li><li><a class="tocitem" href="../InternalForces/">InternalForces</a></li><li class="is-active"><a class="tocitem" href>PurlinDesigner</a><ul class="internal"><li><a class="tocitem" href="#Nomenclature"><span>Nomenclature</span></a></li><li><a class="tocitem" href="#Example"><span>Example</span></a></li><li><a class="tocitem" href="#Background"><span>Background</span></a></li><li><a class="tocitem" href="#Verification-and-testing-log"><span>Verification and testing log</span></a></li></ul></li><li><a class="tocitem" href="../contributing/">Contributing</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>PurlinDesigner</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>PurlinDesigner</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/runtosolve/StructuresKit.jl/blob/master/docs/src/PurlinDesigner.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="PurlinDesigner"><a class="docs-heading-anchor" href="#PurlinDesigner">PurlinDesigner</a><a id="PurlinDesigner-1"></a><a class="docs-heading-anchor-permalink" href="#PurlinDesigner" title="Permalink"></a></h1><p>Determine the expected strength of a single or multi-span purlin line under gravity or uplift loading.  Demand moments, shear, and torsion are calculated considering load eccentricity and roof slope.  Strength limit states are defined by AISI S100-16 and include: flexure+shear, flexure+torsion, biaxial bending, and distortional buckling.  Continuous lateral and rotational springs are available to simulate through fastened or standing seam panel bracing.  </p><h2 id="Nomenclature"><a class="docs-heading-anchor" href="#Nomenclature">Nomenclature</a><a id="Nomenclature-1"></a><a class="docs-heading-anchor-permalink" href="#Nomenclature" title="Permalink"></a></h2><p><img src="../assets/gravity.png" alt="Module nomenclature"/></p><h2 id="Example"><a class="docs-heading-anchor" href="#Example">Example</a><a id="Example-1"></a><a class="docs-heading-anchor-permalink" href="#Example" title="Permalink"></a></h2><p>Calculate the deflection of a 4 span Z-section purlin line supporting a standing seam roof.  Consistent units of kips and inches are used.  The purlin is loaded at the center of the top flange with a uniform downward gravity load. Continuous bracing from roof sheathing is provided as <code>kx=0.100 kips/in.\in.</code> and <code>kϕ=0.100 kip-in./rad/in.</code>.   More commentary on this example is available in a <a href="https://nextjournal.com/runtosolve/metal-building-standing-seam-roof-design-example/">Nextjournal notebook</a> and on YouTube.</p><pre><code class="language-julia">using StructuresKit
+
+ASDorLRFD=0;    #ASDorLRFD=0 for ASD, =1 for LRFD
+
+MemberDefinitions = [(1.0*12,2.0,    1,1,1,1,1),
+                      (22.5*12,6.0,   1,1,1,1,1),
+                      (6.0*12,6.0,    3,1,1,1,3),
+                      (20.5*12,6.0,   2,1,2,1,2),
+                      (2*12,3.0,      4,1,2,1,4),
+                      (20.5*12,6.0,   2,1,2,1,2),
+                      (6.0*12,6.0,    3,1,1,1,3),
+                      (22.5*12,6.0,   1,1,1,1,1),
+                      (1.0*12,2.0,    1,1,1,1,1)];
+
+
+PurlinSpacing=5*12;  #in.
+
+RoofSlope = 4.76;   #degrees
+
+#location where u=v=ϕ=0
+Supports = [1.0*12 26.0*12 51.0*12 76.0*12 101.0*12]
+
+#end boundary conditions
+#type=1 u&#39;&#39;=v&#39;&#39;=ϕ&#39;&#39;=0 (simply supported), type=2 u&#39;=v&#39;=ϕ&#39;=0  (fixed), type=3 u&#39;&#39;=v&#39;&#39;=ϕ&#39;&#39;=u&#39;&#39;&#39;=v&#39;&#39;&#39;=ϕ&#39;&#39;&#39;=0 (free end, e.g., a cantilever)
+EndBoundaryConditions = [3 3];
+
+#Each row below defines a set of section properties.  There are 4 rows because there are 4 cross-sections in this example -  8ZS2.25x070, 8ZS2.25x059, 8ZS2.25x070+ 8ZS2.25x059 at a splice, and 8ZS2.25x059+8ZS2.25x059 at a splice.
+
+#Ixy is negative here because the AISI D100 coordinate system has y pointing up however the PlautBeam.jl coordinate system has y pointing down.
+
+#Ix Iy Ixy J Cw Wn Mcrℓx Mcrℓy
+SectionProperties = [
+(9.18,1.28,-2.47,0.00159,15.1, 151.86, 66.33),
+(7.76,1.08,-2.08,0.000954,12.7, 91.48, 40.06),
+(9.18+7.76,1.28+1.08,-(2.47+2.08),0.00159+0.000954, (15.1+12.7)*2, 151.86+91.48, 66.33+40.06),
+(7.76*2,1.08*2,-2.08*2,0.000954*2,12.7*4, 2*91.48, 2*40.06)];
+
+
+#t is base metal thickness
+#ho, b, d, and h are outside purlin depth, flange width, lip length, and web flat height
+#θ is lip angle from the horizontal
+#CorZ=0 for C, CorZ=1 for Z
+#This nomenclature is consistent with AISI S100-16.
+
+#t, ho, b, d, θ, CorZ, h
+CrossSectionDimensions =
+[(0.070, 8.0, 2.25, 0.930, 50, 1, 7.560),
+ (0.059, 8.0, 2.25, 0.910, 50, 1, 7.582),
+ (0.070+0.059, 8.0, 2.25, 0.910, 50, 1, 7.56),
+ (0.059*2, 8.0, 2.25, 0.910, 50, 1, 7.582)];
+
+
+ #ax ay
+LoadLocation = [((2.250-0.070/2)/2,4), ((2.250-0.059/2)/2,4)];
+
+
+#E  ν  Fy
+MaterialProperties = [(29500,0.30, 55)];
+
+
+#kx  kϕ  Lm  a
+#kx has units of kips/in./in., and kϕ of kips-in./rad/in.
+#Lm is the spacing between bracing that restrains distortional buckling
+#a is the web shear stiffener spacing, assumed equal to the span length here since none are provided
+BracingProperties = [(0.100,0.100, 25.0*12, 25.0*12)];
+
+
+GravityOrUplift=0   #GravityOrUplift=0 for gravity loading
+
+eqn, z, strengths, forces, interactions, dc = PurlinDesigner.lineStrength(ASDorLRFD, GravityOrUplift, MemberDefinitions, SectionProperties, CrossSectionDimensions, MaterialProperties, LoadLocation, BracingProperties, RoofSlope, EndBoundaryConditions, Supports)
+
+FailurePressure=eqn/(PurlinSpacing*cos(deg2rad(RoofSlope)))*1000*144
+
+println(&quot;ASD expected gravity roof capacity = &quot;,round(FailurePressure,digits=1), &quot; psf&quot;)
+
+
+</code></pre><h2 id="Background"><a class="docs-heading-anchor" href="#Background">Background</a><a id="Background-1"></a><a class="docs-heading-anchor-permalink" href="#Background" title="Permalink"></a></h2><p>The PurlinDesigner module uses PlautBeam to perform second-order analysis of the purlin line and AISIS10016 and AISIS10024 to calculate strength limit states.   A <a href="https://en.wikipedia.org/wiki/Bisection_method">bisection-based root-finding method</a> determines the expected strength by using the demand-to-capacity envelope along the purlin line.</p><h2 id="Verification-and-testing-log"><a class="docs-heading-anchor" href="#Verification-and-testing-log">Verification and testing log</a><a id="Verification-and-testing-log-1"></a><a class="docs-heading-anchor-permalink" href="#Verification-and-testing-log" title="Permalink"></a></h2><p>Comparison of PurlinDesigner predicted strengths to physical experiments is ongoing.  The first study will be completed for the 2020 Cold-Formed Steel Research Consortium Colloquium.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../InternalForces/">« InternalForces</a><a class="docs-footer-nextpage" href="../contributing/">Contributing »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Saturday 17 October 2020 16:39">Saturday 17 October 2020</span>. Using Julia version 1.5.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

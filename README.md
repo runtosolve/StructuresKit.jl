@@ -1,41 +1,60 @@
 # StructuresKit
 
-[![Build Status](https://travis-ci.org/runtosolve/StructuresKit.jl.svg?branch=master)](https://travis-ci.org/runtosolve/StructuresKit.jl)
-[![Build status](https://ci.appveyor.com/api/projects/status/idfm6woehn70umgn?svg=true)](https://ci.appveyor.com/project/cristophermoen/structureskit-jl)
-[![codecov](https://codecov.io/gh/runtosolve/StructuresKit.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/runtosolve/StructuresKit.jl)
+*Analyze and design structural systems* 
 
 
-## Usage
-Analyze and design structural components and systems with building blocks organized in a kit.   
+| **Documentation**                                                               | **Build Status**                                                                                |
+|:-------------------------------------------------------------------------------:|:-----------------------------------------------------------------------------------------------:|
+| [![][docs-stable-img]][docs-stable-url] [![][docs-dev-img]][docs-dev-url] | [![][travis-img]][travis-url] [![][appveyor-img]][appveyor-url] [![][codecov-img]][codecov-url] |
 
-## Status
-The current offerings are pretty niche, with a focus on thin-walled structures.  There is plenty of potential for growth, especially for large system problems. This is just the beginning.
 
 ## Installation
 
-You can install StructuresKit on your local machine with these commands.
-
-```julia
-
-git clone https://github.com/runtosolve/StructuresKit.jl StructuresKit
-pkg"dev StructuresKit"
+This package can be installed with the Julia package manager.
+From the Julia REPL, type `]` to enter the Pkg REPL mode and run:
 
 ```
+pkg> add StructuresKit
+```
 
-## Building Blocks
+Or, equivalently, via the `Pkg` API:
 
-### Analysis
+```julia
+julia> import Pkg; Pkg.add("StructuresKit")
+```
 
-* [PlautBeam](https://github.com/runtosolve/StructuresKit.jl/blob/master/docs/PlautBeam/PlautBeam.md)   Perform second order structural analysis of single or multi-span thin-walled beams with a uniform loading.  
+## Documentation
 
-* [InternalForces](https://github.com/runtosolve/StructuresKit.jl/blob/master/docs/InternalForces/InternalForces.md)   Calculate internal axial force, shear, moment, and torsion from a structural member's displaced shape.
+- [**STABLE**][docs-stable-url] &mdash; **documentation of the most recently tagged version.**
+- [**DEVEL**][docs-dev-url] &mdash; *documentation of the in-development version.*
 
-### Codes and Standards
+## Project Status
 
-* [AISIS10016](https://github.com/runtosolve/StructuresKit.jl/blob/master/docs/AISIS10016/AISIS10016.md)   American Iron and Steel Institute (AISI) S100-16 *North American Specification for the Design of Cold-Formed Steel Structural Members*
+This package is under heavy development.   The plan is to offer a set of primitives (building blocks) like `beam, column, shell, connection` and then make it fast and easy to assemble, analyze, design, and visualize the structural system.   
 
-* [AISIS10024](https://github.com/runtosolve/StructuresKit.jl/blob/master/docs/AISIS10024/AISIS10024.md)   American Iron and Steel Institute (AISI) S100-24 *North American Specification for the Design of Cold-Formed Steel Structural Members*
+## Questions and Contributions
 
-### Design
+Usage questions can be posted in the #structures-kit channel on [Julia Slack](https://julialang.org/community/).
 
-* [PurlinDesigner](https://github.com/runtosolve/StructuresKit.jl/blob/master/docs/PurlinDesigner/PurlinDesigner.md)   Determine the expected strength of a single or multi-span purlin line under gravity or uplift loading.
+Contributions are very welcome, as are feature requests and suggestions. Please open an [issue][issues-url] if you encounter problems. The [contributing page][contrib-url] has a few guidelines that should be followed when opening pull requests and contributing code.
+
+[contrib-url]: /github.com/runtosolve/StructuresKit.jl/docs/src/contributing/
+
+[docs-dev-img]: https://img.shields.io/badge/docs-dev-blue.svg
+[docs-dev-url]: https://github.com/runtosolve/StructuresKit.jl/tree/dev
+
+[docs-stable-img]: https://img.shields.io/badge/docs-stable-blue.svg
+[docs-stable-url]: https://github.com/runtosolve/StructuresKit.jl/tree/master
+
+[travis-img]: https://travis-ci.org/runtosolve/StructuresKit.jl.svg?branch=master
+[travis-url]: https://travis-ci.org/StructuresKit.jl
+
+[appveyor-img]: https://ci.appveyor.com/api/projects/status/idfm6woehn70umgn?svg=true
+[appveyor-url]: https://ci.appveyor.com/project/cristophermoen/structureskit-jl
+
+[codecov-img]: https://codecov.io/gh/runtosolve/StructuresKit.jl/branch/master/graph/badge.svg
+[codecov-url]: https://codecov.io/gh/runtosolve/StructuresKit.jl
+
+[issues-url]: https://github.com/runtosolve/StructuresKit.jl/issues
+
+

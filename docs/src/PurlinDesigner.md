@@ -4,7 +4,7 @@ Determine the expected strength of a single or multi-span purlin line under grav
 
 ## Nomenclature
 
-![Module nomenclature](/docs/PurlinDesigner/figures/gravity.png)
+![Module nomenclature](./assets/gravity.png)
 
 ## Example
 Calculate the deflection of a 4 span Z-section purlin line supporting a standing seam roof.  Consistent units of kips and inches are used.  The purlin is loaded at the center of the top flange with a uniform downward gravity load. Continuous bracing from roof sheathing is provided as `kx=0.100 kips/in.\in.` and `kϕ=0.100 kip-in./rad/in.`.   More commentary on this example is available in a [Nextjournal notebook](https://nextjournal.com/runtosolve/metal-building-standing-seam-roof-design-example/) and on YouTube.

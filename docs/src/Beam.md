@@ -1,4 +1,4 @@
-# PlautBeam
+# Beam
 
 Perform second order structural analysis of single or multi-span thin-walled beams with a uniform loading.   The location of the uniform loading on the cross-section (e.g., top of flange, bottom of flange, through the shear center) can be specified.  Lateral and vertical loads can be applied which can be convenient for considering roof slope. Continuous lateral and rotational springs are available to simulate attachment bracing.  
 
@@ -6,7 +6,7 @@ Perform second order structural analysis of single or multi-span thin-walled bea
 
 Here are some possible beam cross-section configurations.
 
-![Package nomenclature](/docs/PlautBeam/figures/crosssections.png)
+![Package nomenclature](./assets/crosssections.png)
 
 ## Example
 Calculate the deflection of a 25 ft. simple span Z-section purlin.  Consistent units of kips and inches are used.  The purlin is loaded at the center of the top flange with a uniform downward gravity load. Continuous bracing from roof sheathing is provided as `kx=0.100 kips/in.\in.` and `kϕ=0.100 kip-in./rad/in.`.
@@ -90,7 +90,7 @@ Check against Figure 14 in the Plaut and Moen (2020) JCSR manuscript calculated 
 ### PlautBeamTest3.jl
 Compare PlautBeam solution to LS-DYNA thin shell FEA solution.
 
-The [LS-DYNA input file](/test/PlautBeam/testfiles/PlautBeamTest3/SSRCExample2r6.k) is provided.
+The [LS-DYNA input file](/test/Beam/testfiles/PlautBeamTest3/SSRCExample2r6.k) is provided.
 
 Example 2 Plaut, R.H., Moen, C.D.(2020). "Lateral-Torsional Deformations of C-Section and Z-Section Beams with Continuous Bracing".  Proceedings of the Structural Stability Research Council Annual Conference, Atlanta, Georgia.
 
