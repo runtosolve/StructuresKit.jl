@@ -1,7 +1,7 @@
 name = "StructuresKit"
 uuid = "f6c18a9d-8941-4a0a-88a3-c5fc4dcc4715"
 authors = ["Cris Moen"]
-version = "0.1.0"
+version = "0.1.1"
 
 [deps]
 DiffEqOperators = "9fdde737-9c7f-55bf-ade8-46b3f136cc48"
