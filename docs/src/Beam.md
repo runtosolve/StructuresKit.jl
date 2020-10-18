@@ -1,6 +1,6 @@
 # Beam
 
-Perform second order structural analysis of single or multi-span thin-walled beams with a uniform loading.   The location of the uniform loading on the cross-section (e.g., top of flange, bottom of flange, through the shear center) can be specified.  Lateral and vertical loads can be applied which can be convenient for considering roof slope. Continuous lateral and rotational springs are available to simulate attachment bracing.  
+Perform second order structural analysis of single or multi-span thin-walled beams with a uniform loading.   The location of the uniform loading on the cross-section (e.g., top of flange, bottom of flange, through the shear center) can be specified.  Lateral and vertical loads can be applied. Continuous lateral and rotational springs are available to simulate attachment bracing.  
 
 ## Nomenclature
 
@@ -44,7 +44,7 @@ SpringStiffness = [(0.100, 0.100)]
              #qx   qy
 UniformLoad=(0.0, 0.001)
 
-z, u, v, ϕ, BeamProperties = PlautBeam.solve(MemberDefinitions, SectionProperties, MaterialProperties, LoadLocation, SpringStiffness, EndBoundaryConditions, Supports, UniformLoad)
+z, u, v, ϕ, BeamProperties = Beam.solve(MemberDefinitions, SectionProperties, MaterialProperties, LoadLocation, SpringStiffness, EndBoundaryConditions, Supports, UniformLoad)
 
 #plot beam deformed shape
 using Plots
@@ -72,13 +72,13 @@ Cross-section deformation is not considered and so calculated displacements may 
 
 ## Verification and testing log
 
-### PlautBeamTest1.jl
+### BeamTest1.jl
 Verify Julia solution against Mathematica solution from Example 2 Plaut, R.H., Moen, C.D.(2020). "Lateral-Torsional Deformations of C-Section and Z-Section Beams with Continuous Bracing".  Proceedings of the Structural Stability Research Council Annual Conference, Atlanta, Georgia.
 
 Z-section, no slope, simple span
 kϕ=300 N*mm/rad/mm, kx=0, gravity load
 
-### PlautBeamTest2.jl
+### BeamTest2.jl
 Verify Julia solution against Mathematica solution from
 Example 2, Plaut, R.H., Moen, C.D.(2020). "Lateral-Torsional Deformations of Single-Span and Two-Span Thin-Walled Beams with Continuous Bracing". Journal of Constructional Steel Research.
 
@@ -87,10 +87,10 @@ kϕ=1500 N*mm/rad/mm, kx=0.1 N/mm^2, gravity load, q = 1 kN/m
 
 Check against Figure 14 in the Plaut and Moen (2020) JCSR manuscript calculated with Mathematica.
 
-### PlautBeamTest3.jl
+### BeamTest3.jl
 Compare PlautBeam solution to LS-DYNA thin shell FEA solution.
 
-The [LS-DYNA input file](/test/Beam/testfiles/PlautBeamTest3/SSRCExample2r6.k) is provided.
+The [LS-DYNA input file](https://github.com/runtosolve/StructuresKit.jl/tree/master/docs/assets/test_files/Beam/BeamTest3/SSRCExample2r6.k) is provided.
 
 Example 2 Plaut, R.H., Moen, C.D.(2020). "Lateral-Torsional Deformations of C-Section and Z-Section Beams with Continuous Bracing".  Proceedings of the Structural Stability Research Council Annual Conference, Atlanta, Georgia.
 
@@ -98,7 +98,7 @@ Z-section, no slope, simple span, load is applied at ax=0, ay=0 to avoid cross-s
 
 
 ### Tests needed
-* roof slope (Julia vs. Mathematica)
-* lateral spring (PlautBeam vs. thin shell FEA)
-* rotational spring (PlautBeam vs. thin shell FEA)
+* lateral loads, qx (Julia vs. Mathematica)
+* lateral spring (Beam vs. thin shell FEA)
+* rotational spring (Beam vs. thin shell FEA)
 * show when cross-sectional deformation causes significant error by varying thickness

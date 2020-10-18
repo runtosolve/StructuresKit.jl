@@ -1,4 +1,4 @@
-# StructuresKit
+# StructuresKit.jl
 
 *Analyze and design structural systems* 
 
@@ -36,9 +36,8 @@ This package is under heavy development.   The plan is to offer a set of primiti
 
 Usage questions can be posted in the #structures-kit channel on [Julia Slack](https://julialang.org/community/).
 
-Contributions are very welcome, as are feature requests and suggestions. Please open an [issue][issues-url] if you encounter problems. The [contributing page][contrib-url] has a few guidelines that should be followed when opening pull requests and contributing code.
+Contributions are very welcome, as are feature requests and suggestions. Please open an [issue][issues-url] if you encounter problems. Please open pull requests against the `master` branch whenever possible. 
 
-[contrib-url]: /github.com/runtosolve/StructuresKit.jl/docs/src/contributing/
 
 [docs-dev-img]: https://img.shields.io/badge/docs-dev-blue.svg
 [docs-dev-url]: https://github.com/runtosolve/StructuresKit.jl/tree/dev

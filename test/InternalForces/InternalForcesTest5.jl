@@ -32,7 +32,7 @@ supports = [0.0 25.0*12]
 #load  qx   qy
 uniformLoad = (0.0, 10/12/1000)  #10 lbs/ft to kips/in.
 
-z, u, v, ϕ, beamProperties = PlautBeam.solve(memberDefinitions, sectionProperties, materialProperties, loadLocation, springStiffness, endBoundaryConditions, supports, uniformLoad)
+z, u, v, ϕ, beamProperties = Beam.solve(memberDefinitions, sectionProperties, materialProperties, loadLocation, springStiffness, endBoundaryConditions, supports, uniformLoad)
 
 B = InternalForces.bimoment(z, beamProperties.dm, ϕ, beamProperties.E, beamProperties.Cw)
 

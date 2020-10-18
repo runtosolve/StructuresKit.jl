@@ -1,13 +1,13 @@
 # PurlinDesigner
 
-Determine the expected strength of a single or multi-span purlin line under gravity or uplift loading.  Demand moments, shear, and torsion are calculated considering load eccentricity and roof slope.  Strength limit states are defined by AISI S100-16 and include: flexure+shear, flexure+torsion, biaxial bending, and distortional buckling.  Continuous lateral and rotational springs are available to simulate through fastened or standing seam panel bracing.  
+Determine the available strength of a single or multi-span purlin line under gravity or uplift loading.  Demand moments, shear, and torsion are calculated considering load eccentricity and roof slope.  Strength limit states are defined by AISI S100-16 and include: flexure+shear, flexure+torsion, biaxial bending, distortional buckling, and deformation of the free flange from buckling and shear flow.  Continuous lateral and rotational springs are available to simulate through fastened or standing seam panel bracing.  
 
 ## Nomenclature
 
 ![Module nomenclature](./assets/gravity.png)
 
 ## Example
-Calculate the deflection of a 4 span Z-section purlin line supporting a standing seam roof.  Consistent units of kips and inches are used.  The purlin is loaded at the center of the top flange with a uniform downward gravity load. Continuous bracing from roof sheathing is provided as `kx=0.100 kips/in.\in.` and `kϕ=0.100 kip-in./rad/in.`.   More commentary on this example is available in a [Nextjournal notebook](https://nextjournal.com/runtosolve/metal-building-standing-seam-roof-design-example/) and on YouTube.
+Calculate the deflection of a 4 span Z-section purlin line supporting a standing seam roof.  Consistent units of kips and inches are used.  The purlin is loaded at the center of the top flange with a uniform downward gravity load. Continuous bracing from roof sheathing is provided as `kx=0.100 kips/in.\in.` and `kϕ=0.100 kip-in./rad/in.`  Intermediate bridging is not provided. More commentary on this example is available in a [Nextjournal notebook](https://nextjournal.com/runtosolve/metal-building-standing-seam-roof-design-example/) and on [YouTube](https://youtu.be/uaHb2SGLahM).
 
 ```julia
 using StructuresKit
@@ -76,10 +76,14 @@ MaterialProperties = [(29500,0.30, 55)];
 #a is the web shear stiffener spacing, assumed equal to the span length here since none are provided
 BracingProperties = [(0.100,0.100, 25.0*12, 25.0*12)];
 
+#Intermediate bridging
+#The free flange is held only at the frame lines here.
+Bridging = [1.0*12 26.0*12 51.0*12 76.0*12 101.0*12]
+
 
 GravityOrUplift=0   #GravityOrUplift=0 for gravity loading
 
-eqn, z, strengths, forces, interactions, dc = PurlinDesigner.lineStrength(ASDorLRFD, GravityOrUplift, MemberDefinitions, SectionProperties, CrossSectionDimensions, MaterialProperties, LoadLocation, BracingProperties, RoofSlope, EndBoundaryConditions, Supports)
+eqn, z, strengths, forces, interactions, dc = PurlinDesigner.lineStrength(ASDorLRFD, GravityOrUplift, MemberDefinitions, SectionProperties, CrossSectionDimensions, MaterialProperties, LoadLocation, BracingProperties, RoofSlope, EndBoundaryConditions, Supports, Bridging)
 
 FailurePressure=eqn/(PurlinSpacing*cos(deg2rad(RoofSlope)))*1000*144
 
@@ -89,7 +93,8 @@ println("ASD expected gravity roof capacity = ",round(FailurePressure,digits=1),
 
 ```
 ## Background
-The PurlinDesigner module uses PlautBeam to perform second-order analysis of the purlin line and AISIS10016 and AISIS10024 to calculate strength limit states.   A [bisection-based root-finding method](https://en.wikipedia.org/wiki/Bisection_method) determines the expected strength by using the demand-to-capacity envelope along the purlin line.
+The PurlinDesigner module uses `Beam` to perform second-order analysis of the purlin line and `AISIS10016` and `AISIS10024` to calculate strength limit states.   A [bisection-based root-finding method](https://en.wikipedia.org/wiki/Bisection_method) determines the expected strength by using the demand-to-capacity envelope along the purlin line.
 
 ## Verification and testing log
-Comparison of PurlinDesigner predicted strengths to physical experiments is ongoing.  The first study will be completed for the 2020 Cold-Formed Steel Research Consortium Colloquium.
+
+- Moen, Cristopher D. (2020). "Metal building purlin line strength by computation."  Proceedings of the Cold-Formed Steel Research Consortium Colloquium.  [https://jscholarship.library.jhu.edu/handle/1774.2/63179](https://jscholarship.library.jhu.edu/handle/1774.2/63179) and [source files](https://github.com/runtosolve/StructuresKit.jl/tree/master/docs/assets/papers/Moen_2020_CFSRC). ABSTRACT:  A computation-based method for metal building purlin and girt design is introduced using the AISI S100-16 North American Specification for the Design of Cold-Formed Steel Structural Members.   Purlin section properties, span length, material properties, and boundary conditions, including bracing connectivity to exterior screw-fastened or standing seam panels, are defined.  Flexure, shear, and torsional strengths are calculated along the line.  The capacity of the roof or wall system is determined by applying a gravity or uplift load until a strength limit state is reached. For uplift loads, buckling deformation of the purlin free flange between intermediate bridging is considered. The calculations are performed with an open-source software package called StructuresKit.jl written in the Julia computing language.   Predicted strengths from the calculation method are compared to the experimentally determined strengths from 49 simple span Cee and Zee wall girt line uplift pressure box tests, some of which were constructed with rigid board insulation.  

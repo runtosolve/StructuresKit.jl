@@ -29,7 +29,7 @@ supports = [0.0 30*12]
 #load  qx   qy
 uniformLoad = (0.0, 5.0/1000)
 
-z, u, v, ϕ, beamProperties = PlautBeam.solve(memberDefinitions, sectionProperties, materialProperties, loadLocation, springStiffness, endBoundaryConditions, supports, uniformLoad)
+z, u, v, ϕ, beamProperties = Beam.solve(memberDefinitions, sectionProperties, materialProperties, loadLocation, springStiffness, endBoundaryConditions, supports, uniformLoad)
 
 Mxx = InternalForces.moment(z, beamProperties.dm, -v, beamProperties.E, beamProperties.Ix)
 
