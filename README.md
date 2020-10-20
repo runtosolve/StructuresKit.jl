@@ -30,7 +30,7 @@ julia> import Pkg; Pkg.add("StructuresKit")
 
 ## Project Status
 
-This package is under heavy development.   The plan is to offer a set of primitives (building blocks) like `beam, column, shell, connection` and then make it fast and easy to assemble, analyze, design, and visualize the structural system.   
+This package is under heavy development.   The plan is to offer a set of primitives (building blocks) like `beam, column, shell, connection` and then make it fast and easy to assemble, analyze, design, and visualize structural systems.   
 
 ## Questions and Contributions
 
@@ -40,10 +40,10 @@ Contributions are very welcome, as are feature requests and suggestions. Please 
 
 
 [docs-dev-img]: https://img.shields.io/badge/docs-dev-blue.svg
-[docs-dev-url]: https://github.com/runtosolve/StructuresKit.jl/tree/dev
+[docs-dev-url]: https://https://runtosolve.github.io/StructuresKit.jl/dev/
 
 [docs-stable-img]: https://img.shields.io/badge/docs-stable-blue.svg
-[docs-stable-url]: https://github.com/runtosolve/StructuresKit.jl/tree/master
+[docs-stable-url]: https://https://runtosolve.github.io/StructuresKit.jl/stable/
 
 [travis-img]: https://travis-ci.org/runtosolve/StructuresKit.jl.svg?branch=master
 [travis-url]: https://travis-ci.org/StructuresKit.jl
