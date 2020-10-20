@@ -24,7 +24,6 @@ makedocs(
 
 deploydocs(
     repo = "github.com/runtosolve/StructuresKit.jl.git",
-    target = "build",
     push_preview = true
 )
 
