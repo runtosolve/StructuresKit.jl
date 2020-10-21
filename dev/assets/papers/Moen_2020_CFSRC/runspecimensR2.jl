@@ -3,7 +3,7 @@ using CSV, DataFrames
 
 #Import Gao and Moen (2013) specimen section properties and Mcrl.
 
-path = "/Users/crismoen/.julia/dev/StructuresKit/docs/PurlinDesigner/papers/CFSRC2020/inputs/"
+path = "/Users/crismoen/.julia/dev/StructuresKit/docs/src/assets/papers/Moen_2020_CFSRC/inputs/"
 
 filename = string(path, "julia_sectionprops.csv")
 sectprops = CSV.read(filename, DataFrame, header=false)
@@ -19,8 +19,9 @@ dims = CSV.read(filename, DataFrame, header=false)
 
 FailurePressure = zeros(Float64, 49)
 
-for i = 1:14
+# for i = 22:22
 
+i = 22
 
         ASDorLRFD=2    #ASDorLRFD=0 for ASD, =1 for LRFD, 2 for nominal
 
@@ -138,11 +139,11 @@ for i = 1:14
 
         FailurePressure[i]=eqn/PurlinSpacing*10^6
 
-end
+# end
 
-using DelimitedFiles
-filename = "/Users/crismoen/.julia/dev/StructuresKit/docs/PurlinDesigner/papers/CFSRC2020/failurepressureR2.csv"
-writedlm(filename, FailurePressure)
+# using DelimitedFiles
+# filename = "/Users/crismoen/.julia/dev/StructuresKit/docs/PurlinDesigner/papers/CFSRC2020/failurepressureR2.csv"
+# writedlm(filename, FailurePressure)
 
 
           #N/m^2
