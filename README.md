@@ -40,10 +40,10 @@ Contributions are very welcome, as are feature requests and suggestions. Please 
 
 
 [docs-dev-img]: https://img.shields.io/badge/docs-dev-blue.svg
-[docs-dev-url]: https://https://runtosolve.github.io/StructuresKit.jl/dev/
+[docs-dev-url]: https://runtosolve.github.io/StructuresKit.jl/dev/
 
 [docs-stable-img]: https://img.shields.io/badge/docs-stable-blue.svg
-[docs-stable-url]: https://https://runtosolve.github.io/StructuresKit.jl/stable/
+[docs-stable-url]: https://runtosolve.github.io/StructuresKit.jl/stable/
 
 [travis-img]: https://travis-ci.org/runtosolve/StructuresKit.jl.svg?branch=master
 [travis-url]: https://travis-ci.org/StructuresKit.jl
