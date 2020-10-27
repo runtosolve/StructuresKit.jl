@@ -125,7 +125,9 @@ function h121(Pbar, Mxbar, Mybar, Pa, Max, May)
 
 end
 
-function table23131(CorZ::Int64,t,b,d,θ)
+function table23131(CorZ,t,b,d,θ)
+
+    CorZ = convert(Int8, CorZ)
 
     Af=(b+d)*t
     Jf=1/3*b*t^3+1/3*d*t^3
