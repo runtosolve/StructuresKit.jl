@@ -5,7 +5,7 @@ using LinearAlgebra
 using RecursiveArrayTools: VectorOfArray
 using NLsolve
 
-using ..BeamMesh
+using ..Mesh
 
 
 export solve
@@ -148,27 +148,27 @@ end
 function define(MemberDefinitions, SectionProperties, MaterialProperties, LoadLocation, SpringStiffness, EndBoundaryConditions, Supports, UniformLoad)
 
 
-   dz, z, dm = BeamMesh.define(MemberDefinitions)
+   dz, z, dm = Mesh.define_line_element(MemberDefinitions)
 
    NumberOfNodes=length(dz)+1
 
 
    #define property vectors
-   Ix = BeamMesh.propvector(MemberDefinitions, dm, dz, SectionProperties, 3, 1)
-   Iy = BeamMesh.propvector(MemberDefinitions, dm, dz, SectionProperties, 3, 2)
-   Ixy = BeamMesh.propvector(MemberDefinitions, dm, dz, SectionProperties, 3, 3)
-   J = BeamMesh.propvector(MemberDefinitions, dm, dz, SectionProperties, 3, 4)
-   Cw = BeamMesh.propvector(MemberDefinitions, dm, dz, SectionProperties, 3, 5)
+   Ix = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, SectionProperties, 3, 1)
+   Iy = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, SectionProperties, 3, 2)
+   Ixy = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, SectionProperties, 3, 3)
+   J = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, SectionProperties, 3, 4)
+   Cw = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, SectionProperties, 3, 5)
 
-   E = BeamMesh.propvector(MemberDefinitions, dm, dz, MaterialProperties, 4, 1)
-   ν = BeamMesh.propvector(MemberDefinitions, dm, dz, MaterialProperties, 4, 2)
+   E = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, MaterialProperties, 4, 1)
+   ν = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, MaterialProperties, 4, 2)
    G = E./(2 .*(1 .+ ν))
 
-   ax = BeamMesh.propvector(MemberDefinitions, dm, dz, LoadLocation, 5, 1)
-   ay = BeamMesh.propvector(MemberDefinitions, dm, dz, LoadLocation, 5, 2)
+   ax = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, LoadLocation, 5, 1)
+   ay = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, LoadLocation, 5, 2)
 
-   kx = BeamMesh.propvector(MemberDefinitions, dm, dz, SpringStiffness, 6, 1)
-   kϕ = BeamMesh.propvector(MemberDefinitions, dm, dz, SpringStiffness, 6, 2)
+   kx = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, SpringStiffness, 6, 1)
+   kϕ = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, SpringStiffness, 6, 2)
 
 
    Azzzz,Azz = calculateDerivativeOperators(dz) #calculate derivative operators

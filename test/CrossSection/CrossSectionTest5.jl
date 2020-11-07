@@ -75,15 +75,85 @@ ycoords = [ycoords; ones(n[3])*ycoords[end]]
 
 #go around the fillet
 radius = -xcoords[end] - section.tw
-θ = π/2/n[4]:π/2/n[4]:π/2
-x_radius = radius .* sin.(θ)
-y_radius = radius .* cos.(θ)
+θ = (-π/2 + π/2/n[4]):π/2/n[4]: 0.0
+
+xo = xcoords[end]
+yo = ycoords[end] + radius
+
+x_radius = xo .+ radius .* cos.(θ)
+y_radius = yo .+ radius .* sin.(θ)
+
+# plot(x_radius, y_radius, markershape = :o, linetype = :scatter)
+
+xcoords = [xcoords; x_radius]
+ycoords = [ycoords; y_radius]
+
+#add web flat 
+web_flat = section.d/2 - section.tf - radius
+
+web_flat_range = (ycoords[end] + web_flat/n[5]): web_flat/n[5]: (ycoords[end] + web_flat)
+xcoords = [xcoords; ones(n[5])*xcoords[end]]
+ycoords = [ycoords; web_flat_range]
+
+#mirror about horizontal axis
+ycoords_horz_flip = ycoords .- ycoords[end]
+ycoords_horz_flip = -ycoords_horz_flip
+ycoords_horz_flip = ycoords_horz_flip .+ ycoords[end]
+
+xcoords = [xcoords; reverse(xcoords)[2:end]]
+ycoords = [ycoords; reverse(ycoords_horz_flip)[2:end]]
+
+#mirror about vertical axis
+xcoords_vert_flip = reverse(-xcoords)[2:end-1]
+
+xcoords = [xcoords; xcoords_vert_flip]
+ycoords = [ycoords; reverse(ycoords)[2:end-1]]
+
+
+using Plots
+plot(xcoords, ycoords, markershape = :o, linetype = :scatter, legend = false)
+
+
+using StructuresKit
+
+x = xcoords
+y = ycoords
+z = 0:1:120
+
+coordinates = Mesh.extrude(xcoords, ycoords, z)
+
+num_cross_section_nodes = length(x)
+num_extruded_layers = length(z)
+num_cross_section_elements = num_cross_section_nodes 
+
+
+connectivity = Mesh.extruded_surface(num_cross_section_nodes, num_cross_section_elements, num_extruded_layers)
+
+  #combine all the triangles
+
+
+
+
+
+
+
+
+
+# coordinates, connectivity = Visualize.Mesh3D(cross_section_nodes, z, u, v, ϕ)
+
+# #plot the mesh with Makie
+using Makie
+scene = poly(coordinates, connectivity, color=:lightgray, shading=:true, show_axis=:false, overdraw=:false, strokecolor = (:black, 0.6), strokewidth = 4)
+
+
+
+# plot(xcoords, ycoords, markershape = :o, linetype = :scatter, ylims=(0, 8))
+
 
 #load CSV
 #define cross-section geometry 
 #extrude geometry
 #define extruded facets
 #define end facets 
-
 
 

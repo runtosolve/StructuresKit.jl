@@ -5,7 +5,7 @@ using LinearAlgebra
 using RecursiveArrayTools: VectorOfArray
 using NLsolve
 
-using ..BeamMesh
+using ..Mesh
 
 
 export solve
@@ -148,37 +148,37 @@ end
 function define(MemberDefinitions, SectionProperties, MaterialProperties, Loads, Springs, EndBoundaryConditions, Supports)
 
 
-   dz, z, dm = BeamMesh.define(MemberDefinitions)
+   dz, z, dm = Mesh.define_line_element(MemberDefinitions)
 
    NumberOfNodes=length(dz)+1
 
 
    #define property vectors
-   A =  BeamMesh.propvector(MemberDefinitions, dm, dz, SectionProperties, 3, 1)
-   Ix = BeamMesh.propvector(MemberDefinitions, dm, dz, SectionProperties, 3, 2)
-   Iy = BeamMesh.propvector(MemberDefinitions, dm, dz, SectionProperties, 3, 3)
-   J = BeamMesh.propvector(MemberDefinitions, dm, dz, SectionProperties, 3, 4)
-   Cw = BeamMesh.propvector(MemberDefinitions, dm, dz, SectionProperties, 3, 5)
-   xc = BeamMesh.propvector(MemberDefinitions, dm, dz, SectionProperties, 3, 6)
-   yc = BeamMesh.propvector(MemberDefinitions, dm, dz, SectionProperties, 3, 7)
-   xs = BeamMesh.propvector(MemberDefinitions, dm, dz, SectionProperties, 3, 8)
-   ys = BeamMesh.propvector(MemberDefinitions, dm, dz, SectionProperties, 3, 9)
+   A =  Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, SectionProperties, 3, 1)
+   Ix = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, SectionProperties, 3, 2)
+   Iy = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, SectionProperties, 3, 3)
+   J = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, SectionProperties, 3, 4)
+   Cw = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, SectionProperties, 3, 5)
+   xc = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, SectionProperties, 3, 6)
+   yc = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, SectionProperties, 3, 7)
+   xs = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, SectionProperties, 3, 8)
+   ys = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, SectionProperties, 3, 9)
 
    xo = -(xc .- xs)
    yo = yc .- ys
 
    Io = Ix .+ Iy .+ A .* (xo.^2 + yo.^2)
 
-   E = BeamMesh.propvector(MemberDefinitions, dm, dz, MaterialProperties, 4, 1)
-   ν = BeamMesh.propvector(MemberDefinitions, dm, dz, MaterialProperties, 4, 2)
+   E = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, MaterialProperties, 4, 1)
+   ν = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, MaterialProperties, 4, 2)
    G = E./(2 .*(1 .+ ν))
 
-   # kx = BeamMesh.propvector(MemberDefinitions, dm, dz, Springs, 5, 1)
-   # ky = BeamMesh.propvector(MemberDefinitions, dm, dz, Springs, 5, 2)
-   # kϕ = BeamMesh.propvector(MemberDefinitions, dm, dz, Springs, 5, 3)
+   # kx = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, Springs, 5, 1)
+   # ky = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, Springs, 5, 2)
+   # kϕ = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, Springs, 5, 3)
    #
-   # hx = BeamMesh.propvector(MemberDefinitions, dm, dz, Springs, 5, 4)
-   # hy = BeamMesh.propvector(MemberDefinitions, dm, dz, Springs, 5, 5)
+   # hx = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, Springs, 5, 4)
+   # hy = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, Springs, 5, 5)
 
    kx = Springs[1]
    ky = Springs[2]

@@ -8,9 +8,9 @@ export AISIS10024
 include("AISIS10024.jl")
 using .AISIS10024
 
-export BeamMesh
-include("BeamMesh.jl")
-using .BeamMesh
+export Mesh
+include("Mesh.jl")
+using .Mesh
 
 export BeamColumn
 include("BeamColumn.jl")

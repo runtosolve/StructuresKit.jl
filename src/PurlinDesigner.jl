@@ -5,11 +5,11 @@ using ..AISIS10016
 using ..AISIS10024
 using ..Beam
 using ..InternalForces
-using ..BeamMesh
+using ..Mesh
 using ..BeamColumn
 using ..CrossSection
 
-export lineStrength, free_flange_define
+export line_strength, free_flange_define
 
 
 #calculated section strengths along a purlin line
@@ -20,14 +20,14 @@ function sectionStrengths(ASDorLRFD, dz, dm, memberDefinitions, sectionPropertie
     #calculate strength limit state capacities
 
     #strong axis flexure, local-global interaction
-    Fy = BeamMesh.propvector(memberDefinitions, dm, dz, materialProperties, 4, 3)
-    Ixx = BeamMesh.propvector(memberDefinitions, dm, dz, sectionProperties, 3, 1)
-    ho = BeamMesh.propvector(memberDefinitions, dm, dz, crossSectionDimensions, 7, 2)
+    Fy = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, materialProperties, 4, 3)
+    Ixx = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, sectionProperties, 3, 1)
+    ho = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, crossSectionDimensions, 7, 2)
     ycy = ho./2  #distance from neutral axis to outer fiber
     Sxx = Ixx./ycy
     Myxx = Fy.*Sxx
     Mnexx = Myxx
-    Mcrℓxx = BeamMesh.propvector(memberDefinitions, dm, dz, sectionProperties, 3, 7)
+    Mcrℓxx = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, sectionProperties, 3, 7)
 
     Mnℓxx = zeros(Float64, numberOfNodes)
     eMnℓxx = zeros(Float64, numberOfNodes)
@@ -36,19 +36,19 @@ function sectionStrengths(ASDorLRFD, dz, dm, memberDefinitions, sectionPropertie
     end
 
     #weak axis flexure, local-global interaction
-    Iyy = BeamMesh.propvector(memberDefinitions, dm, dz, sectionProperties, 3, 2)
+    Iyy = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, sectionProperties, 3, 2)
 
-    t = BeamMesh.propvector(memberDefinitions, dm, dz, crossSectionDimensions, 7, 1)
-    b = BeamMesh.propvector(memberDefinitions, dm, dz, crossSectionDimensions, 3, 3)
-    d = BeamMesh.propvector(memberDefinitions, dm, dz, crossSectionDimensions, 3, 4)
-    θc = BeamMesh.propvector(memberDefinitions, dm, dz, crossSectionDimensions, 3, 5)
+    t = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, crossSectionDimensions, 7, 1)
+    b = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, crossSectionDimensions, 3, 3)
+    d = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, crossSectionDimensions, 3, 4)
+    θc = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, crossSectionDimensions, 3, 5)
 
     #distance from neutral axis to outer fiber
     ycx = b.+d.*cos.(deg2rad.(θc)) .-t./2
     Syy = Iyy./ycx
     Myyy = Fy.*Syy
     Mneyy = Myyy
-    Mcrℓyy = BeamMesh.propvector(memberDefinitions, dm, dz, sectionProperties, 3, 8)
+    Mcrℓyy = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, sectionProperties, 3, 8)
 
     Mnℓyy = zeros(Float64, numberOfNodes)
     eMnℓyy = zeros(Float64, numberOfNodes)
@@ -57,10 +57,10 @@ function sectionStrengths(ASDorLRFD, dz, dm, memberDefinitions, sectionPropertie
     end
 
     #torsion
-    Cw = BeamMesh.propvector(memberDefinitions, dm, dz, sectionProperties, 3, 5)
-    Fy = BeamMesh.propvector(memberDefinitions, dm, dz, materialProperties, 4, 3)
-    Wn = BeamMesh.propvector(memberDefinitions, dm, dz, sectionProperties, 3, 6)
-    Bcrℓ = BeamMesh.propvector(memberDefinitions, dm, dz, sectionProperties, 3, 9)
+    Cw = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, sectionProperties, 3, 5)
+    Fy = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, materialProperties, 4, 3)
+    Wn = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, sectionProperties, 3, 6)
+    Bcrℓ = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, sectionProperties, 3, 9)
 
     Bn = zeros(Float64, numberOfNodes)
     eBn = zeros(Float64, numberOfNodes)
@@ -69,14 +69,14 @@ function sectionStrengths(ASDorLRFD, dz, dm, memberDefinitions, sectionPropertie
     end
 
     #distortional buckling
-    CorZ = BeamMesh.propvector(memberDefinitions, dm, dz, crossSectionDimensions, 3, 6)
+    CorZ = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, crossSectionDimensions, 3, 6)
     CorZ = trunc.(Int, CorZ)
-    E = BeamMesh.propvector(memberDefinitions, dm, dz, materialProperties, 4, 1)
-    μ = BeamMesh.propvector(memberDefinitions, dm, dz, materialProperties, 4, 2)
+    E = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, materialProperties, 4, 1)
+    μ = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, materialProperties, 4, 2)
     G= E./(2 .*(1 .+ μ))
     f1=1.0*ones(length(numberOfNodes))
     f2=-1.0*ones(length(numberOfNodes))
-    Lm = BeamMesh.propvector(memberDefinitions, dm, dz, bracingProperties, 6, 3)
+    Lm = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, bracingProperties, 6, 3)
 
     #define moment gradient factor
     #assume it is 1
@@ -102,8 +102,8 @@ function sectionStrengths(ASDorLRFD, dz, dm, memberDefinitions, sectionPropertie
 
 
     #Web shear strength
-    a = BeamMesh.propvector(memberDefinitions, dm, dz, bracingProperties, 6, 4)
-    h = BeamMesh.propvector(memberDefinitions, dm, dz, crossSectionDimensions, 7, 7)
+    a = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, bracingProperties, 6, 4)
+    h = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, crossSectionDimensions, 7, 7)
     kv  = AISIS10016.g233.(a, h)
     Fcr = AISIS10016.g232.(E, μ, kv, h, t)
     Vcr = AISIS10016.g231.(h, t, Fcr)
@@ -116,8 +116,8 @@ function sectionStrengths(ASDorLRFD, dz, dm, memberDefinitions, sectionPropertie
 
 
     #define free flange properties
-    Iyyf = BeamMesh.propvector(memberDefinitions, dm, dz, FlangeProperties, 3, 2)
-    xcf = BeamMesh.propvector(memberDefinitions, dm, dz, FlangeProperties, 3, 6)
+    Iyyf = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, FlangeProperties, 3, 2)
+    xcf = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, FlangeProperties, 3, 6)
 
 
     #Free flange strength
@@ -259,13 +259,13 @@ function rootfinder(q, eps, residual, demandToCapacity, memberDefinitions, secti
 
 end
 
-function lineStrength(ASDorLRFD, gravityOrUplift, memberDefinitions, sectionProperties, crossSectionDimensions, materialProperties, loadLocation, bracingProperties, roofSlope, endBoundaryConditions, supports, bridging)
+function line_strength(ASDorLRFD, gravityOrUplift, memberDefinitions, sectionProperties, crossSectionDimensions, materialProperties, loadLocation, bracingProperties, roofSlope, endBoundaryConditions, supports, bridging)
 
-    dz, z, dm = BeamMesh.define(memberDefinitions)
+    dz, z, dm = Mesh.define_line_element(memberDefinitions)
     numnodes = length(z)
 
     #Calculate free flange available strengths.
-    FlangeProperties, Springs, Loads = PurlinDesigner.free_flange_define(memberDefinitions, sectionProperties, materialProperties, crossSectionDimensions, bracingProperties, 0.0, zeros(Float64, numnodes))
+    FlangeProperties, Springs, Loads = PurlinDesigner.free_flange_define_line_element(memberDefinitions, sectionProperties, materialProperties, crossSectionDimensions, bracingProperties, 0.0, zeros(Float64, numnodes))
 
 
     #Calculate purlin available strengths.
@@ -352,7 +352,7 @@ end
 function free_flange_define(MemberDefinitions, SectionProperties, MaterialProperties, CrossSectionDimensions, BracingProperties, q, Mxx)
 
 
-    dz, z, dm = BeamMesh.define(MemberDefinitions)
+    dz, z, dm = Mesh.define_line_element(MemberDefinitions)
 
     numnodes = length(z)
 
