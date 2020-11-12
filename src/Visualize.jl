@@ -1,6 +1,9 @@
 module Visualize
 
-export Mesh3D
+using GeometryBasics
+using FileIO
+
+export Mesh3D, create_ply_file
 
 
 function Mesh3D(CrossSectionNodes, z, u, v, ϕ)
@@ -33,5 +36,34 @@ function Mesh3D(CrossSectionNodes, z, u, v, ϕ)
     return coordinates, connectivity   #these are ready for Makie scenes, e.g., poly()
 
 end
+
+
+"""
+    create_ply_file(coordinates, connectivity, filename)
+
+Accepts triangular surface mesh `coordinates` and `connectivity` along with a `filename' and saves a .ply file.
+
+https://en.wikipedia.org/wiki/PLY_(file_format)
+
+The coordinates and connectivity are converted to GeometryBasics.jl primitives before saving with FileIO.jl.  
+
+"""
+
+
+
+function create_ply_file(coordinates, connectivity, filename)
+
+    points = [Point{3, Float64}(coordinates[i,1], coordinates[i,2], coordinates[i,3]) for i = 1:size(coordinates)[1]]
+
+    facets = [TriangleFace{Cint}(connectivity[i, 1:3]) for i in eachindex(connectivity[:,1])]
+
+    mesh = GeometryBasics.Mesh(points, facets)
+
+    # using FileIO, MeshIO
+    FileIO.save(filename, mesh)
+
+end
+
+
 
 end #module

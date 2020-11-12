@@ -1,7 +1,8 @@
 module Mesh
 
+using Triangle
 
-export define_line_element, create_line_element_property_vector, extrude, extruded_surface
+export define_line_element, create_line_element_property_vector, extrude_nodes, extrude_elements, open_cross_section_tessellation, surface
 
 
 """
@@ -136,12 +137,12 @@ function create_line_element_property_array(member_definitions, dm, dz, property
 end
 
 """
-   extrude(x, y, z)
+   extrude_nodes(x, y, z)
 
 Accepts the `x` and `y` cross-section coordinates and `z` coordinates along the extrusion. Returns the 3D `coordinates` in the form `[x y z]` from the extrusion.
 """
 
-function extrude(x, y, z)
+function extrude_nodes(x, y, z)
 
    num_nodes_section = length(x)
    coordinates = zeros(num_nodes_section, 3)   #initialize coordinates array
@@ -160,13 +161,13 @@ function extrude(x, y, z)
 end
 
 """
-   extruded_surface(num_cross_section_nodes, num_cross_section_elements, num_extruded_layers)
+   extrude_elements(num_cross_section_nodes, num_cross_section_elements, num_extruded_layers)
 
 Returns a triangular surface mesh `connectivity` matrix as `[node_i node_j node_k]`.   If `num_cross_section_nodes = num_cross_section_elements`, then the cross-section is closed or multi-branched.
 
 """
 
-function extruded_surface(num_cross_section_nodes, num_cross_section_elements, num_extruded_layers)
+function extrude_elements(num_cross_section_nodes, num_cross_section_elements, num_extruded_layers)
 
    num_elements = num_cross_section_elements * (num_extruded_layers - 1)
 
@@ -230,5 +231,70 @@ function extruded_surface(num_cross_section_nodes, num_cross_section_elements, n
    return connectivity
 
 end
+
+"""
+   open_cross_section_tessellation(x, y)
+
+Accepts `x` and `y` coordinates for an open cross-section and determines a through-thickness triangular mesh `shape_mesh`.  The Array `cross_section_edges = [node(i) node(j)]` is also output, providing the nodal connectivity that describes the cross-section boundary.
+
+"""
+
+function open_cross_section_tessellation(x, y)
+
+    #define cross-section edges
+    cross_section_edges = zeros(Int, length(x), 2)
+    for i = 1:length(x) - 1
+        cross_section_edges[i, 1] = i
+        cross_section_edges[i, 2] = i + 1 
+    end
+    cross_section_edges[end, :] = [length(x) 1]  #for open cross-section only
+  
+    points = [x y]
+    points_map = [i for i=1:length(x)]
+    shape_mesh = Triangle.constrained_triangulation(points, points_map, cross_section_edges)
+
+    return shape_mesh, cross_section_edges
+
+end
+
+
+"""
+   surface(xcoords, ycoords, zcoords)
+
+Accepts 3D surface coordinates of a structural member and defines a triangular surface mesh with `coordinates` and `connectivity`.  
+
+"""
+
+function surface(xcoords, ycoords, zcoords)
+
+   #generate triangular mesh at the ends
+   section_mesh, cross_section_edges = open_cross_section_tessellation(xcoords, ycoords)
+
+   #get member 3D coordinates via extrusion
+   coordinates = extrude_nodes(xcoords, ycoords, zcoords)
+
+   #define triangular mesh along extrusion
+   num_cross_section_nodes = length(xcoords)
+   num_extruded_layers = length(zcoords)
+   num_cross_section_elements = size(cross_section_edges)[1]
+   extrusion_connectivity = extrude_elements(num_cross_section_nodes, num_cross_section_elements, num_extruded_layers)
+
+   # mesh beginning and end faces of extrusion
+   #beginning face
+   begin_connectivity = zeros(Int, length(section_mesh), 3)
+   for i=1:length(section_mesh)
+       begin_connectivity[i, :] = section_mesh[i]
+   end
+
+   #end face
+   end_connectivity = begin_connectivity .+ num_cross_section_nodes * (num_extruded_layers - 1)
+
+   #combine to define the full surface with end caps   
+   connectivity = [extrusion_connectivity; begin_connectivity; end_connectivity]
+
+   return coordinates, connectivity
+
+end
+
 
 end #module
