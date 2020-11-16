@@ -14,8 +14,8 @@ xcoords, ycoords = StructuresKit.CrossSection.wshape_nodes(shape_info, n)
 
 coordinates, connectivity = StructuresKit.Mesh.surface(xcoords, ycoords, zcoords)
 
-using Makie
-scene = poly(coordinates, connectivity, color=:lightgray, shading=:true, show_axis=:false, overdraw=:false, strokecolor = (:black, 0.6), strokewidth = 1)
+# using Makie
+# scene = poly(coordinates, connectivity, color=:lightgray, shading=:true, show_axis=:false, overdraw=:false, strokecolor = (:black, 0.6), strokewidth = 1)
 
 
 #  using GeometryBasics

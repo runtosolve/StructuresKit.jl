@@ -12,10 +12,6 @@ export Mesh
 include("Mesh.jl")
 using .Mesh
 
-export BeamColumn
-include("BeamColumn.jl")
-using .BeamColumn
-
 export Connections
 include("Connections.jl")
 using .Connections
@@ -32,13 +28,20 @@ export Beam
 include("Beam.jl")
 using .Beam
 
-export PurlinDesigner
-include("PurlinDesigner.jl")
-using .PurlinDesigner
+export Column
+include("Column.jl")
+using .Column
+
+export BeamColumn
+include("BeamColumn.jl")
+using .BeamColumn
 
 export Visualize
 include("Visualize.jl")
 using .Visualize
 
+export PurlinDesigner
+include("PurlinDesigner.jl")
+using .PurlinDesigner
 
 end

@@ -1,4 +1,4 @@
-module BeamColumn
+module Column
 
 using DiffEqOperators: CenteredDifference
 using LinearAlgebra
@@ -145,7 +145,7 @@ function applyEndBoundaryConditions(A, EndBoundaryConditions, NthDerivative, dz)
 end
 
 
-function define(MemberDefinitions, SectionProperties, MaterialProperties, Loads, Springs, EndBoundaryConditions, Supports)
+function define(MemberDefinitions, SectionProperties, MaterialProperties, Loads, Springs, EndBoundaryConditions, Supports, imperfections)
 
 
    dz, z, dm = Mesh.define_line_element(MemberDefinitions)
@@ -173,19 +173,18 @@ function define(MemberDefinitions, SectionProperties, MaterialProperties, Loads,
    ν = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, MaterialProperties, 4, 2)
    G = E./(2 .*(1 .+ ν))
 
-   # kx = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, Springs, 5, 1)
-   # ky = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, Springs, 5, 2)
-   # kϕ = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, Springs, 5, 3)
-   #
-   # hx = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, Springs, 5, 4)
-   # hy = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, Springs, 5, 5)
-
    kx = Springs[1]
    ky = Springs[2]
    kϕ = Springs[3]
 
    hx = Springs[4]
    hy = Springs[5]
+
+   #define imperfections 
+   uo = imperfections[1]
+   vo = imperfections[2]
+   ϕo = imperfections[3] 
+
 
    Azzzz,Azz = calculateDerivativeOperators(dz) #calculate derivative operators
 
@@ -196,12 +195,9 @@ function define(MemberDefinitions, SectionProperties, MaterialProperties, Loads,
    NthDerivative = 2
    Azz = applyEndBoundaryConditions(Azz,EndBoundaryConditions,NthDerivative,dz)
 
-   #define load and load locations
-   P =  Loads[1]
-   qx = Loads[2]
-   qy = Loads[3]
-   ax = Loads[4]
-   ay = Loads[5]
+   #define load
+   P =  Loads
+
 
    #build identity matrix for ODE operations
    AI = Matrix(1.0I,NumberOfNodes,NumberOfNodes)
@@ -222,18 +218,18 @@ function define(MemberDefinitions, SectionProperties, MaterialProperties, Loads,
    #calculate operator quantities on LHS  AU=B
    for i = 1:NumberOfNodes
       A11[i,:] = E.*Iy.*Azzzz[i,:] .+ P .* Azz[i,:] .+kx.*AI[i,:]
-      A13[i,:] = -kx.*hy.*AI[i,:]
+      A13[i,:] = kx.*(yo .-hy).*AI[i,:] .+ P.*yo .* Azz[i,:]
       A22[i,:] = E.*Ix.*Azzzz[i,:] .+ P.*Azz[i,:] .+ ky.*AI[i,:]
-      A23[i,:] = ky.*hx.*AI[i,:]
-      A31[i,:] = -kx.*hy.*AI[i,:]
-      A32[i,:] = ky.*hx.*AI[i,:]
-      A33[i,:] = E.*Cw.*Azzzz[i,:] .-(G.*J .- (P.*Io./A)).*Azz[i,:] .+kx.*hy.^2 .*AI[i,:] .+ky.*hx.^2 .*AI[i,:] .+kϕ.*AI[i,:] .+qx.*ax.*AI[i,:] - .+qy.*ay.*AI[i,:]
+      A23[i,:] = -ky.*(xo .-hx).*AI[i,:] - P .* xo .* Azz[i,:]
+      A31[i,:] = kx.*(yo .-hy).*AI[i,:] .+ P .* yo .* Azz[i,:]
+      A32[i,:] = -ky.*(xo .-hx).*AI[i,:] .- P .* xo .* Azz[i,:]
+      A33[i,:] = E.*Cw.*Azzzz[i,:] .-(G.*J .- (P.*Io./A)).*Azz[i,:] .+kx.*(yo .-hy).^2 .*AI[i,:] .+ky.*(xo .- hx).^2 .*AI[i,:] .+kϕ.*AI[i,:]
    end
 
    #calculate RHS of AU=B
-   B1 = qx
-   B2 = qy
-   B3 = qx.*ay .+qy.*ax
+   B1 = -P .* Azz*uo - P .* yo .* Azz*ϕo
+   B2 = -P .* Azz*vo + P .* xo .* Azz*ϕo
+   B3 = -P .* yo .* Azz*uo + P .* xo .* Azz*vo - P .* (Io ./ A) .* Azz*ϕo
 
    #reduce problem to free dof
    FixedDOF = [findall(x->abs(x-Supports[i])<=10e-6,z) for i=1:length(Supports)]
@@ -247,7 +243,7 @@ function define(MemberDefinitions, SectionProperties, MaterialProperties, Loads,
 
    Bm = [B1[FreeDOF]; B2[FreeDOF]; B3[FreeDOF]]
 
-   properties = NamedTuple{(:dm, :z, :P, :A, :Ix, :Iy, :J, :Cw, :xc, :yc, :xs, :ys, :xo, :yo, :Io, :E, :ν, :G, :ax, :ay, :kx, :ky, :kϕ, :hx, :hy, :qx, :qy)}((dm, z, P, A, Ix, Iy, J, Cw, xc, yc, xs, ys, xo, yo, Io, E, ν, G, ax, ay, kx, ky, kϕ, hx, hy, qx, qy))
+   properties = NamedTuple{(:dm, :z, :P, :A, :Ix, :Iy, :J, :Cw, :xc, :yc, :xs, :ys, :xo, :yo, :Io, :E, :ν, :G, :kx, :ky, :kϕ, :hx, :hy, :uo, :vo, :ϕo)}((dm, z, P, A, Ix, Iy, J, Cw, xc, yc, xs, ys, xo, yo, Io, E, ν, G, kx, ky, kϕ, hx, hy, uo, vo, ϕo))
 
 
    return Am, Bm, FreeDOF, properties
@@ -265,9 +261,9 @@ function residual!(R, U, K, F)
 end
 
 
-function solve(member_definitions, section_properties, material_properties, loads, springs, end_boundary_conditions, supports)
+function solve(member_definitions, section_properties, material_properties, loads, springs, end_boundary_conditions, supports, imperfections)
 
-   K, F, free_dof, properties = define(member_definitions, section_properties, material_properties, loads, springs, end_boundary_conditions, supports)
+   K, F, free_dof, properties = define(member_definitions, section_properties, material_properties, loads, springs, end_boundary_conditions, supports, imperfections)
 
    num_nodes=length(properties.z)
 
