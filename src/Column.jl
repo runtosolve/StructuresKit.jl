@@ -6,9 +6,10 @@ using RecursiveArrayTools: VectorOfArray
 using NLsolve
 
 using ..Mesh
+using ..InternalForces
 
 
-export solve
+export solve, normal_stresses, normal_strains, warping_displacements, deformed_shape
 
 
 
@@ -282,5 +283,123 @@ function solve(member_definitions, section_properties, material_properties, load
    return u, v, ϕ, properties
 
 end
+
+
+
+function deformed_shape(xcoords, ycoords, zcoords, u, v, ϕ, w, scale_u, scale_v, scale_ϕ, scale_w)
+
+   x_deformed = []
+   y_deformed = []
+   z_deformed = []
+   num_sections = length(zcoords)
+
+   u = scale_u .* u
+   v = scale_v .* v
+   ϕ = scale_ϕ .* ϕ
+   w = scale_w .* w
+
+   for i = 1:num_sections
+
+       if i == 1
+           x_deformed = xcoords .+ (u[i] .+xcoords.*cos.(ϕ[i]).-ycoords.*sin.(ϕ[i]))
+           y_deformed = ycoords .+ (v[i] .+xcoords.*sin.(ϕ[i]).+ycoords.*cos.(ϕ[i]))
+           z_deformed = zcoords[i] .+ w[i, :]
+       else
+           x_deformed = [x_deformed; xcoords .+ (u[i] .+xcoords.*cos.(ϕ[i]).-ycoords.*sin.(ϕ[i]))]
+           y_deformed = [y_deformed; ycoords .+ (v[i] .+xcoords.*sin.(ϕ[i]).+ycoords.*cos.(ϕ[i]))]
+           z_deformed = [z_deformed; zcoords[i] .+ w[i, :]]
+       end
+
+   end
+
+   return x_deformed, y_deformed, z_deformed
+
+end
+
+
+function axial_stress(P, A)
+
+   σ_axial = P / A
+
+end
+
+function flexural_stress(M, y, I)
+
+   σ_flexural = M * y / I
+
+end
+
+
+function normal_stresses(xcoords, ycoords, zcoords, u, v, properties)
+
+   num_sections = length(zcoords)
+   num_cross_section_nodes = length(xcoords)
+
+   σ_axial = zeros(Float64, (num_sections, num_cross_section_nodes))
+   σ_flexural_xx = zeros(Float64, (num_sections, num_cross_section_nodes))
+   σ_flexural_yy = zeros(Float64, (num_sections, num_cross_section_nodes))
+   σ_total_normal = zeros(Float64, (num_sections, num_cross_section_nodes))
+
+   Mxx = InternalForces.moment(properties.z, properties.dm, -v, properties.E, properties.Ix)
+   Myy = InternalForces.moment(properties.z, properties.dm, -u, properties.E, properties.Iy)
+
+   for i=1:num_sections
+
+       A=properties.A[i]
+       P=properties.P[i]
+       Ix = properties.Ix[i]
+       Iy = properties.Iy[i]
+
+       #need a better way to include axial stresses in the deformed configuration  
+       # σ_axial[i, :] = axial_stress(-properties.P[i], properties.A[i]) * ones(Float64, num_cross_section_nodes)
+       σ_flexural_xx[i, :] = flexural_stress.(Mxx[i], -(ycoords .- properties.yc[i]), properties.Ix[i]) 
+       σ_flexural_yy[i, :] = flexural_stress.(Myy[i], -(xcoords .- properties.xc[i]), properties.Iy[i]) 
+       #add warping stresses here one day...
+       σ_total_normal[i,:] = σ_axial[i, :] + σ_flexural_xx[i, :] + σ_flexural_yy[i, :]
+
+   end
+
+   return σ_total_normal
+
+end
+
+
+function normal_stains(properties, σ_total_normal)
+   
+   ϵ_total_normal = σ_total_normal ./ properties.E
+
+end
+
+using NumericalIntegration
+
+#integrate strains to calculate warping displacements
+
+function warping_displacements(zcoords, ϵ_total_normal)
+
+   num_sections = length(zcoords)
+   num_cross_section_nodes = length(ϵ_total_normal[1,:])
+
+   w = zeros(Float64, (num_sections, num_cross_section_nodes))
+   w_total = zeros(Float64, (num_sections, num_cross_section_nodes))
+
+   for i=1:num_sections
+
+       for j = 1:num_cross_section_nodes
+
+           w_total[i,j] = integrate(zcoords[1:end], ϵ_total_normal[1:end,j])
+           
+           w[i, j] = w_total[i,j]/2 - integrate(zcoords[1:i], ϵ_total_normal[1:i,j])  #not sure if this is general or not
+
+       end
+
+   end
+
+   return w
+
+end
+
+
+
+
 
 end #module
