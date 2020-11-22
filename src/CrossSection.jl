@@ -5,7 +5,8 @@ using LinearAlgebra
 using CSV
 using DataFrames
 
-export CUFSM_CZcenterline, CUFSMtemplate, CUFSMsection_properties, CZflange_template, AISC, wshape_nodes
+export CUFSM_CZcenterline, CUFSMtemplate, CUFSMsection_properties, CZflange_template, AISC, wshape_nodes,
+       assemble, Feature, Deck
 
 
 struct WShape
@@ -28,6 +29,24 @@ struct WShape
 
 end
 
+
+#primitive, line element defined as vector, with n segments
+struct Feature
+
+    Δx::Array{Float64,1}
+    Δy::Array{Float64,1}
+    n::Array{Int,1}
+
+end
+
+#deck cross-section definition 
+#this could be a model for other cross-section types
+struct Deck
+
+    features::Tuple{Feature,Feature,Feature}
+    feature_map::Array{Int,1}
+
+end
 
 
 function CUFSM_CZcenterline(H,B1,D1,q1,B2,D2,q2,ri1,ri2,ri3,ri4,t)
@@ -941,6 +960,67 @@ function wshape_nodes(shape_info, n)
 end
 
 
+#define nodal coordinates within a feature
+function discretize_feature(feature)
+
+    dx = feature.Δx ./ feature.n
+    dy = feature.Δy ./ feature.n
+
+    return dx, dy
+
+end
+
+#define feature geometry, typically a feature is repetitive
+function feature_geometry(feature, dx, dy)
+
+    xcoords = []
+    ycoords = []
+
+    num_lines = length(feature.Δx)
+
+    for i = 1:num_lines
+
+        if i==1
+            xcoords = range(0.0, feature.Δx[i], length = feature.n[i] + 1)
+            ycoords = range(0.0, feature.Δy[i], length = feature.n[i] + 1)
+        else
+            xcoords = [xcoords; xcoords[end] .+ range(dx[i], feature.Δx[i], length = feature.n[i])]
+            ycoords = [ycoords; ycoords[end] .+ range(dy[i], feature.Δy[i], length = feature.n[i])]
+        end
+   
+    end
+
+    return xcoords, ycoords
+
+end
+
+
+#assemble an open cross-section as a series of line element features
+function assemble(OpenSection)
+
+    xcoords = []
+    ycoords = []
+    num_features = length(OpenSection.feature_map)
+
+    for i =1:num_features
+
+        feature_type = OpenSection.feature_map[i]
+
+        dx, dy = discretize_feature(OpenSection.features[feature_type])
+
+        if i==1
+            xcoords, ycoords = feature_geometry(OpenSection.features[feature_type], dx, dy)
+        else
+            feature_xcoords, feature_ycoords = feature_geometry(OpenSection.features[feature_type], dx, dy)
+            xcoords = [xcoords; xcoords[end] .+ feature_xcoords[2:end]]
+            ycoords = [ycoords; ycoords[end] .+ feature_ycoords[2:end]]
+        end
+
+    end
+
+    return xcoords, ycoords
+
+end
 
 
 end #module
