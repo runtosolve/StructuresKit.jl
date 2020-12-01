@@ -8,6 +8,10 @@ export AISIS10024
 include("AISIS10024.jl")
 using .AISIS10024
 
+export Geometry
+include("Geometry.jl")
+using .Geometry
+
 export Mesh
 include("Mesh.jl")
 using .Mesh
@@ -43,5 +47,9 @@ using .Visualize
 export PurlinDesigner
 include("PurlinDesigner.jl")
 using .PurlinDesigner
+
+export LSDYNA
+include("LSDYNA.jl")
+using .LSDYNA
 
 end

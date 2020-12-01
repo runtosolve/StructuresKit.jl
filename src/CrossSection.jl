@@ -5,8 +5,11 @@ using LinearAlgebra
 using CSV
 using DataFrames
 
+using ..Geometry
+
 export CUFSM_CZcenterline, CUFSMtemplate, CUFSMsection_properties, CZflange_template, AISC, wshape_nodes,
-       assemble, Feature, Deck
+       assemble, Feature, Deck, surface_normals, avg_node_normals, xycoords_along_normal, create_CUFSM_node_elem,
+       discretize_feature, feature_geometry, get_xy_coordinates
 
 
 struct WShape
@@ -33,10 +36,20 @@ end
 #primitive, line element defined as vector, with n segments
 struct Feature
 
-    Δx::Array{Float64,1}
-    Δy::Array{Float64,1}
+    ΔL::Array{Float64,1}
+    θ::Array{Float64,1}
     n::Array{Int,1}
+    radius::Array{Float64,1}
+    n_radius::Array{Int,1}
+    closed_or_open::Int
 
+end
+
+struct Point
+
+    x::Float64
+    y::Float64
+    
 end
 
 #deck cross-section definition 
@@ -47,6 +60,15 @@ struct Deck
     feature_map::Array{Int,1}
 
 end
+
+
+struct Open
+
+    features::Feature
+    feature_map::Array{Int,1}
+
+end
+
 
 
 function CUFSM_CZcenterline(H,B1,D1,q1,B2,D2,q2,ri1,ri2,ri3,ri4,t)
@@ -1006,16 +1028,279 @@ function assemble(OpenSection)
 
         feature_type = OpenSection.feature_map[i]
 
-        dx, dy = discretize_feature(OpenSection.features[feature_type])
+        # dx, dy = discretize_feature(OpenSection.features[feature_type])
 
         if i==1
-            xcoords, ycoords = feature_geometry(OpenSection.features[feature_type], dx, dy)
+            xcoords, ycoords = get_xy_coordinates(OpenSection.features[feature_type])
         else
-            feature_xcoords, feature_ycoords = feature_geometry(OpenSection.features[feature_type], dx, dy)
+            feature_xcoords, feature_ycoords = get_xy_coordinates(OpenSection.features[feature_type])
             xcoords = [xcoords; xcoords[end] .+ feature_xcoords[2:end]]
             ycoords = [ycoords; ycoords[end] .+ feature_ycoords[2:end]]
         end
 
+    end
+
+    return xcoords, ycoords
+
+end
+
+
+
+
+
+
+
+
+# calculate surface normals for each line segment in a 2D cross-section
+function surface_normals(xcoords, ycoords, closed_or_open)
+
+   
+    if closed_or_open == 0
+        numel = length(xcoords)   #closed
+    elseif closed_or_open ==1
+        numel = length(xcoords) - 1  #open
+    end
+    
+    unitnormals = zeros(Float64, (numel, 2))
+
+    for i=1:numel
+
+        if i == numel & closed_or_open == 0   #for tubes
+            pointA = Point(xcoords[i], ycoords[i])
+            pointB = Point(xcoords[1], ycoords[1])
+        else
+            pointA = Point(xcoords[i], ycoords[i])
+            pointB = Point(xcoords[i + 1], ycoords[i + 1])
+
+        end
+
+        dx = pointB.x - pointA.x
+        dy = pointB.y - pointA.y
+
+        normAB = norm([dx, dy])
+
+        unitnormals[i, :] = [-dy, dx] / normAB
+
+        if unitnormals[i,1] == -0.0
+            unitnormals[i,1]= 0.0
+        end
+
+        if unitnormals[i,2] == -0.0
+            unitnormals[i,1]= 0.0
+        end
+
+    end
+
+    return unitnormals
+
+end
+
+
+# calculate average unit normals at each node in a 2D cross-section from element unit normals
+function avg_node_normals(unitnormals, closed_or_open)
+
+    if closed_or_open == 0
+        numnodes = size(unitnormals)[1]
+        numel = size(unitnormals)[1]
+    elseif closed_or_open ==1
+        numnodes = size(unitnormals)[1]+1
+        numel = size(unitnormals)[1]
+    end
+
+    nodenormals = zeros(Float64, (numnodes, 2))
+
+    for i=1:numnodes
+
+        if (i == 1) & (closed_or_open == 0)  # where nodes meet in the tube
+            nodenormals[i, :] = mean(unitnormals[[numel, 1], :], dims=1)
+        elseif (i != 1) & (closed_or_open == 0)  #tube
+            nodenormals[i, :] = mean(unitnormals[i:i+1, :], dims=1)
+        elseif (i == 1) & (closed_or_open == 1)  #open, first node is element norm
+            nodenormals[i, :] = unitnormals[i, :]
+        elseif (i != 1) & (i != numnodes) & (closed_or_open == 1)  #open
+            nodenormals[i, :] = mean(unitnormals[i-1:i, :], dims=1)
+        elseif (i == numnodes) & (closed_or_open == 1)  #open, last node is element norm 
+            nodenormals[i, :] = unitnormals[i-1, :]
+        
+        end
+
+        #make sure unit normal always = 1.0
+        unitnorm = norm(nodenormals[i, :])
+        if unitnorm < 0.99
+            scale = 1.0/unitnorm
+            nodenormals[i,:] = scale .* nodenormals[i,:]
+        end
+
+    end
+
+    return nodenormals
+
+end
+
+
+function xycoords_along_normal(xcoords, ycoords, nodenormals, Δ)
+
+    numnodes = size(xcoords)[1]
+    xcoords_normal = zeros(Float64, numnodes)
+    ycoords_normal = zeros(Float64, numnodes)
+
+    for i=1:numnodes
+        xcoords_normal[i] = xcoords[i] + nodenormals[i, 1] * Δ
+        ycoords_normal[i] = ycoords[i] + nodenormals[i, 2] * Δ
+    end
+
+    return xcoords_normal, ycoords_normal
+
+end
+
+function create_CUFSM_node_elem(xcoords, ycoords, connectivity, t)
+
+    num_elem = size(connectivity)[1]
+    num_nodes = length(xcoords)
+
+    node = zeros((num_nodes, 8))
+    elem = zeros((num_elem, 5))
+
+    for i=1:num_nodes
+        node[i,:] = [i, xcoords[i], ycoords[i], 1, 1, 1, 1, 1.0]
+    end
+
+    for i=1:num_elem
+        elem[i, :] = [i, connectivity[i,1], connectivity[i,2], t[i], 100]
+    end
+
+    return node, elem
+
+end
+
+
+function get_xy_coordinates(feature)
+
+    xcoords = []
+    ycoords = []
+
+    #convert feature vectors to xy components
+    Δxy = Geometry.vector_components(feature.ΔL, feature.θ)
+
+    #number of straight line segments in the feature
+    num_lines = size(Δxy)[1]
+
+    #get xy line coordinates of feature
+    xcoords_straight, ycoords_straight = Geometry.line_coordinates(Δxy)
+    
+    #calculate feature surface normals
+    unitnormals = CrossSection.surface_normals(xcoords_straight, ycoords_straight, feature.closed_or_open)
+
+    #calculate feature node normals
+    nodenormals = CrossSection.avg_node_normals(unitnormals, feature.closed_or_open) 
+    
+    #calculate interior corner angle magnitudes
+    num_radius = length(feature.radius)
+    interior_radius_angle = zeros(Float64, num_radius)
+    for i=1:num_radius
+
+        θ1 = feature.θ[i]
+        θ2 = feature.θ[i+1]
+
+        if sign(θ1) != sign(θ2)   #don't think this is fully general
+            interior_radius_angle[i] = 180 - (abs(θ1) + abs(θ2))
+        end
+
+    end
+    
+    #calculate distance from curve PI to start and end of curve, along tangents
+    Tc = zeros(Float64, length(feature.radius))
+
+    for i = 1:length(feature.radius)
+
+        radius = feature.radius[i]
+
+        if radius > 0.0
+
+            xy_PI = [xcoords_straight[i+1], ycoords_straight[i+1]]
+            n = feature.n_radius[i]
+            γ = interior_radius_angle[i]
+            θ1 = feature.θ[i]
+            θ2 = feature.θ[i+1]
+
+            if (sign(θ1) <=0) & (sign(θ2) >= 0)
+                PI_unit_normal = -nodenormals[i+1,:]             
+            else
+                PI_unit_normal = nodenormals[i+1,:]
+            end
+
+            xy_curve, Δ, E, Tc[i], xy_o, xy_BC, xy_EC, BC_unit_tangent, EC_unit_tangent, radius_unit_vector_BC = Geometry.circular_curve(radius, γ, xy_PI, PI_unit_normal, n)
+
+        elseif radius == 0.0
+            Tc[i] = 0.0
+        end
+
+    end
+
+    #shorten vector lengths to include curves
+    ΔLc = zeros(Float64, num_lines)
+    for i = 1:length(feature.ΔL)
+
+        if i == 1  #first
+            ΔLc[i] = feature.ΔL[i] - Tc[i]   #j end
+        elseif i == length(feature.ΔL)  #last
+            ΔLc[i] = feature.ΔL[i] - Tc[end]  #j end
+        else  #others
+            ΔLc[i] = feature.ΔL[i] - Tc[i-1] - Tc[i] #i and j ends 
+        end
+
+    end
+
+    Δxyc = Geometry.vector_components(ΔLc, feature.θ)
+
+    #discretize feature
+    dx = Δxyc[:,1] ./ feature.n
+    dy = Δxyc[:,2] ./ feature.n
+   
+    #assemble feature
+    for i = 1:num_lines
+
+        if i==1   #first vector
+            xcoords = range(0.0, Δxyc[i,1], length = feature.n[i] + 1)
+            ycoords = range(0.0, Δxyc[i,2], length = feature.n[i] + 1)
+        elseif i != num_lines
+            xcoords = [xcoords; xcoords[end] .+ range(dx[i], Δxyc[i,1], length = feature.n[i])]
+            ycoords = [ycoords; ycoords[end] .+ range(dy[i], Δxyc[i,2], length = feature.n[i])]
+        end
+
+        #add radius to end of vector
+        if i < num_lines
+            if feature.radius[i]>0.0 
+                xy_PI = [xcoords_straight[i+1], ycoords_straight[i+1]]
+                n = feature.n_radius[i]
+                radius = feature.radius[i]
+                γ = interior_radius_angle[i]
+                θ1 = feature.θ[i]
+                θ2 = feature.θ[i+1]
+
+                if (sign(θ1) <=0) & (sign(θ2) >= 0)   
+                    PI_unit_normal = -nodenormals[i+1,:]  #concave up             
+                else
+                    PI_unit_normal = nodenormals[i+1,:]  #concave down
+                end
+
+                xy_curve, Δ, E, T, xy_o, xy_BC, xy_EC, BC_unit_tangent, EC_unit_tangent, radius_unit_vector_BC = Geometry.circular_curve(radius, γ, xy_PI, PI_unit_normal, n)
+
+                if (sign(θ1) <=0) & (sign(θ2) >= 0)
+                    xy_curve = reverse(xy_curve, dims=1)    #concave up        
+                end
+
+                xcoords = [xcoords; xy_curve[2:end,1]]
+                ycoords = [ycoords; xy_curve[2:end,2]]
+
+            end
+        end
+
+        if i== num_lines  #last vector
+            xcoords = [xcoords; xcoords[end] .+ range(dx[i], Δxyc[i,1], length = feature.n[i])]
+            ycoords = [ycoords; ycoords[end] .+ range(dy[i], Δxyc[i,2], length = feature.n[i])]
+        end
+    
     end
 
     return xcoords, ycoords
