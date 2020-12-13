@@ -8,9 +8,17 @@ export AISIS10024
 include("AISIS10024.jl")
 using .AISIS10024
 
+export Eurocode1993
+include("Eurocode1993.jl")
+using .Eurocode1993
+
 export Geometry
 include("Geometry.jl")
 using .Geometry
+
+export MaterialModels
+include("MaterialModels.jl")
+using .MaterialModels
 
 export Mesh
 include("Mesh.jl")
