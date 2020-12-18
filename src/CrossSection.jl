@@ -4,12 +4,14 @@ using Statistics
 using LinearAlgebra
 using CSV
 using DataFrames
+using TriangleMesh
 
 using ..Geometry
 
 export CUFSM_CZcenterline, CUFSMtemplate, CUFSMsection_properties, CZflange_template, AISC, wshape_nodes,
        assemble, Feature, Deck, surface_normals, avg_node_normals, xycoords_along_normal, create_CUFSM_node_elem,
-       discretize_feature, feature_geometry, get_xy_coordinates
+       discretize_feature, feature_geometry, get_xy_coordinates, area_from_cells, centroid_from_cells, moment_of_inertia_from_cells,
+       triangular_mesh_properties
 
 
 struct WShape
@@ -933,7 +935,8 @@ function wshape_nodes(shape_info, n)
 
     #over to fillet radius at bottom flange - web intersection
 
-    flange_flat = shape_info.bf/2 - shape_info.tw/2 - shape_info.k1/2
+    # flange_flat = shape_info.bf/2 - shape_info.k1
+    flange_flat = shape_info.bf/2 - shape_info.tw/2 - (shape_info.kdes - shape_info.tf)
 
     inside_flange_range = (xcoords[end] + flange_flat/n[3]) : flange_flat/n[3] : (xcoords[end] + flange_flat)
 
@@ -941,7 +944,7 @@ function wshape_nodes(shape_info, n)
     ycoords = [ycoords; ones(n[3])*ycoords[end]]
 
     #go around the fillet
-    radius = -xcoords[end] - shape_info.tw
+    radius = -xcoords[end] - shape_info.tw/2
     θ = (-π/2 + π/2/n[4]):π/2/n[4]: 0.0
 
     xo = xcoords[end]
@@ -1306,6 +1309,110 @@ function get_xy_coordinates(feature)
     return xcoords, ycoords
 
 end
+
+
+
+#calculate cross-sectional area from cells
+
+function area_from_cells(Ai)
+
+    A = sum(Ai)
+
+end
+
+#calculate cross-section centroid from cells
+
+function centroid_from_cells(Ai, cxi, cyi)
+
+    A = area_from_cells(Ai)
+
+    cx = sum(cxi .* Ai) / A
+    cy = sum(cyi .* Ai) / A
+
+    return cx, cy
+
+end
+
+
+function moment_of_inertia_from_cells(Ai, ci, c)
+
+    I = sum(((c .- ci) .^2 .* Ai))
+
+    return I
+
+end
+
+#discretize cross-section with a triangular mesh
+function triangular_mesh(xcoords, ycoords, mesh_size)
+
+    num_nodes = length(xcoords)
+    num_segments = num_nodes
+
+    # n_point, n_point_marker, n_point_attribute, n_segment, n_holes
+    poly = TriangleMesh.Polygon_pslg(num_nodes, 1, 0, num_segments, 0)
+
+    node = [xcoords ycoords]
+    set_polygon_point!(poly, node)
+
+    node_marker = ones(Int, num_nodes, 1)
+    set_polygon_point_marker!(poly, node_marker)
+
+    segments = zeros(Int, num_segments, 2)
+    for i=1:num_segments
+
+        if i == num_segments
+            segments[i, 1:2] = [i, 1]
+        else
+            segments[i, 1:2] = [i, i+1]
+        end
+
+    end
+
+    set_polygon_segment!(poly, segments)
+
+    segment_markers = ones(Int, num_segments)
+    set_polygon_segment_marker!(poly, segment_markers)
+
+    #switches from https://www.cs.cmu.edu/~quake/triangle.html
+    switches = "penvVa" * string(mesh_size) * "D"
+
+    mesh = create_mesh(poly, switches)
+
+    return mesh
+
+end
+
+
+function triangular_mesh_properties(mesh)
+    
+    #calculate cell area and centroid
+    Ai = zeros(Float64, mesh.n_cell)
+    cxi = zeros(Float64, mesh.n_cell)
+    cyi = zeros(Float64, mesh.n_cell)
+
+    for i = 1:mesh.n_cell
+
+        p1 = mesh.cell[1, i]
+        p2 = mesh.cell[2, i]
+        p3 = mesh.cell[3, i]
+
+        x1 = mesh.point[1, p1]
+        y1 = mesh.point[2,p1]
+        x2 = mesh.point[1, p2]
+        y2 = mesh.point[2,p2]
+        x3 = mesh.point[1, p3]
+        y3 = mesh.point[2,p3]
+
+    Ai[i] = Geometry.triangle_area(x1, y1, x2, y2, x3, y3)
+
+    cxi[i], cyi[i] = Geometry.triangle_centroid(x1, y1, x2, y2, x3, y3)
+
+    end
+
+    return Ai, cxi, cyi
+
+end
+
 
 
 end #module

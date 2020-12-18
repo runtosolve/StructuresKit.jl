@@ -9,11 +9,11 @@ using ..Mesh
 using ..InternalForces
 
 
-export solve, normal_stresses, normal_strains, warping_displacements, deformed_shape
+export Properties, initialize, solve, normal_stresses, normal_strains, warping_displacements, deformed_shape, calculate_derivative_operators, apply_end_boundary_conditions
 
 
 
-function calculateDerivativeOperators(dz)
+function calculate_derivative_operators(dz)
 
    NumberOfNodes=length(dz)+1
 
@@ -109,7 +109,7 @@ function calculateBoundaryStencils(BCFlag, h, NthDerivative)
 
 end
 
-function applyEndBoundaryConditions(A, EndBoundaryConditions, NthDerivative, dz)
+function apply_end_boundary_conditions(A, EndBoundaryConditions, NthDerivative, dz)
 
    #left end
    h = dz[1]
@@ -145,60 +145,106 @@ function applyEndBoundaryConditions(A, EndBoundaryConditions, NthDerivative, dz)
 
 end
 
+mutable struct Properties
 
-function define(MemberDefinitions, SectionProperties, MaterialProperties, Loads, Springs, EndBoundaryConditions, Supports, imperfections)
+      A::Array{Float64,1}
+      Ix::Array{Float64,1}
+      Iy::Array{Float64,1}
+      J::Array{Float64,1}
+      Cw::Array{Float64,1}
+      xc::Array{Float64,1}
+      yc::Array{Float64,1}
+      xs::Array{Float64,1}
+      ys::Array{Float64,1}
+      xo::Array{Float64,1}
+      yo::Array{Float64,1}
+      Io::Array{Float64,1}
+      E::Array{Float64,1}
+      ν::Array{Float64,1}
+      G::Array{Float64,1}
+      kx::Float64
+      ky::Float64
+      kϕ::Float64
+      hx::Float64
+      hy::Float64
+      uo::Array{Float64,1}
+      vo::Array{Float64,1}
+      ϕo::Array{Float64,1}
+      P::Array{Float64,1}
+      dz::Array{Float64,1}
+      z::Array{Float64,1}
+      dm::Array{Float64,1}
+      Azz::Array{Float64,2}
+      Azzzz::Array{Float64,2}
+      supports::Array{Float64,1}
+      
+end
 
+   
 
-   dz, z, dm = Mesh.define_line_element(MemberDefinitions)
+function initialize(member_definitions, section_properties, material_properties, loads, springs, end_boundary_conditions, supports, imperfections)
+
+   dz, z, dm = Mesh.define_line_element(member_definitions)
 
    NumberOfNodes=length(dz)+1
 
 
    #define property vectors
-   A =  Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, SectionProperties, 3, 1)
-   Ix = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, SectionProperties, 3, 2)
-   Iy = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, SectionProperties, 3, 3)
-   J = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, SectionProperties, 3, 4)
-   Cw = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, SectionProperties, 3, 5)
-   xc = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, SectionProperties, 3, 6)
-   yc = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, SectionProperties, 3, 7)
-   xs = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, SectionProperties, 3, 8)
-   ys = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, SectionProperties, 3, 9)
+   A =  Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 1)
+   Ix = Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 2)
+   Iy = Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 3)
+   J = Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 4)
+   Cw = Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 5)
+   xc = Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 6)
+   yc = Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 7)
+   xs = Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 8)
+   ys = Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 9)
 
    xo = -(xc .- xs)
    yo = yc .- ys
 
    Io = Ix .+ Iy .+ A .* (xo.^2 + yo.^2)
 
-   E = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, MaterialProperties, 4, 1)
-   ν = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, MaterialProperties, 4, 2)
+   E = Mesh.create_line_element_property_array(member_definitions, dm, dz, material_properties, 4, 1)
+   ν = Mesh.create_line_element_property_array(member_definitions, dm, dz, material_properties, 4, 2)
    G = E./(2 .*(1 .+ ν))
 
-   kx = Springs[1]
-   ky = Springs[2]
-   kϕ = Springs[3]
+   kx = springs[1]
+   ky = springs[2]
+   kϕ = springs[3]
 
-   hx = Springs[4]
-   hy = Springs[5]
+   hx = springs[4]
+   hy = springs[5]
 
    #define imperfections 
    uo = imperfections[1]
    vo = imperfections[2]
    ϕo = imperfections[3] 
 
+   #define load
+   P =  loads
 
-   Azzzz,Azz = calculateDerivativeOperators(dz) #calculate derivative operators
+   #calculate derivative operators
+   Azzzz,Azz = calculate_derivative_operators(dz) 
 
    #apply left and right end boundary condition stencils to derivative operators
    NthDerivative = 4
-   Azzzz = applyEndBoundaryConditions(Azzzz,EndBoundaryConditions,NthDerivative,dz)
-
+   Azzzz = apply_end_boundary_conditions(Azzzz, end_boundary_conditions, NthDerivative, dz)
+    
    NthDerivative = 2
-   Azz = applyEndBoundaryConditions(Azz,EndBoundaryConditions,NthDerivative,dz)
+   Azz = apply_end_boundary_conditions(Azz, end_boundary_conditions, NthDerivative, dz)
 
-   #define load
-   P =  Loads
+   properties = Properties(A, Ix, Iy, J, Cw, xc, yc, xs, ys, xo, yo, Io, E, ν, G, kx, ky, kϕ, hx, hy, uo, vo, ϕo, P, dz, z, dm, Azz, Azzzz, supports)
 
+   return properties
+
+end
+
+
+function equations(properties)
+
+
+   NumberOfNodes=length(properties.dz)+1
 
    #build identity matrix for ODE operations
    AI = Matrix(1.0I,NumberOfNodes,NumberOfNodes)
@@ -218,22 +264,23 @@ function define(MemberDefinitions, SectionProperties, MaterialProperties, Loads,
 
    #calculate operator quantities on LHS  AU=B
    for i = 1:NumberOfNodes
-      A11[i,:] = E.*Iy.*Azzzz[i,:] .+ P .* Azz[i,:] .+kx.*AI[i,:]
-      A13[i,:] = kx.*(yo .-hy).*AI[i,:] .+ P.*yo .* Azz[i,:]
-      A22[i,:] = E.*Ix.*Azzzz[i,:] .+ P.*Azz[i,:] .+ ky.*AI[i,:]
-      A23[i,:] = -ky.*(xo .-hx).*AI[i,:] - P .* xo .* Azz[i,:]
-      A31[i,:] = kx.*(yo .-hy).*AI[i,:] .+ P .* yo .* Azz[i,:]
-      A32[i,:] = -ky.*(xo .-hx).*AI[i,:] .- P .* xo .* Azz[i,:]
-      A33[i,:] = E.*Cw.*Azzzz[i,:] .-(G.*J .- (P.*Io./A)).*Azz[i,:] .+kx.*(yo .-hy).^2 .*AI[i,:] .+ky.*(xo .- hx).^2 .*AI[i,:] .+kϕ.*AI[i,:]
+      A11[i,:] = properties.E .* properties.Iy .* properties.Azzzz[i,:] .+ properties.P .* properties.Azz[i,:] .+ properties.kx .* AI[i,:]
+      A13[i,:] = properties.kx .*(properties.yo .- properties.hy) .* AI[i,:] .+ properties.P .* properties.yo .* properties.Azz[i,:]
+      A22[i,:] = properties.E .* properties.Ix .* properties.Azzzz[i,:] .+ properties.P .* properties.Azz[i,:] .+ properties.ky .* AI[i,:]
+      A23[i,:] = -properties.ky .* (properties.xo .-properties.hx) .* AI[i,:] - properties.P .* properties.xo .* properties.Azz[i,:]
+      A31[i,:] = properties.kx.*(properties.yo .- properties.hy) .* AI[i,:] .+ properties.P .* properties.yo .* properties.Azz[i,:]
+      A32[i,:] = -properties.ky.*(properties.xo .- properties.hx) .* AI[i,:] .- properties.P .* properties.xo .* properties.Azz[i,:]
+      A33[i,:] = properties.E .* properties.Cw .* properties.Azzzz[i,:] .-(properties.G .* properties.J .- (properties.P .* properties.Io ./ properties.A)) .* properties.Azz[i,:] 
+      .+ properties.kx .* (properties.yo .- properties.hy).^2 .*AI[i,:] .+ properties.ky.*(properties.xo .- properties.hx).^2 .*AI[i,:] .+ properties.kϕ .* AI[i,:]
    end
 
    #calculate RHS of AU=B
-   B1 = -P .* Azz*uo - P .* yo .* Azz*ϕo
-   B2 = -P .* Azz*vo + P .* xo .* Azz*ϕo
-   B3 = -P .* yo .* Azz*uo + P .* xo .* Azz*vo - P .* (Io ./ A) .* Azz*ϕo
+   B1 = -properties.P .* properties.Azz * properties.uo - properties.P .* properties.yo .* properties.Azz * properties.ϕo
+   B2 = -properties.P .* properties.Azz * properties.vo + properties.P .* properties.xo .* properties.Azz * properties.ϕo
+   B3 = -properties.P .* properties.yo .* properties.Azz * properties.uo + properties.P .* properties.xo .* properties.Azz * properties.vo - properties.P .* (properties.Io ./ properties.A) .* properties.Azz * properties.ϕo
 
    #reduce problem to free dof
-   FixedDOF = [findall(x->abs(x-Supports[i])<=10e-6,z) for i=1:length(Supports)]
+   FixedDOF = [findall(x->abs(x-properties.supports[i])<=10e-6, properties.z) for i=1:length(properties.supports)]
    FixedDOF = VectorOfArray(FixedDOF)
    FixedDOF  = convert(Array,FixedDOF)
    FreeDOF = setdiff(1:NumberOfNodes,FixedDOF)
@@ -244,27 +291,47 @@ function define(MemberDefinitions, SectionProperties, MaterialProperties, Loads,
 
    Bm = [B1[FreeDOF]; B2[FreeDOF]; B3[FreeDOF]]
 
-   properties = NamedTuple{(:dm, :z, :P, :A, :Ix, :Iy, :J, :Cw, :xc, :yc, :xs, :ys, :xo, :yo, :Io, :E, :ν, :G, :kx, :ky, :kϕ, :hx, :hy, :uo, :vo, :ϕo)}((dm, z, P, A, Ix, Iy, J, Cw, xc, yc, xs, ys, xo, yo, Io, E, ν, G, kx, ky, kϕ, hx, hy, uo, vo, ϕo))
-
-
-   return Am, Bm, FreeDOF, properties
+   return Am, Bm, FreeDOF
 
 end
 
-function residual!(R, U, K, F)
+function residual!(R, U, K, F, properties, free_dof, inelasticity_flag)
+
+   if inelasticity_flag == 1
+
+      K, F = inelasticity_update(U, properties, free_dof)
+
+   end
 
    for i=1:length(F)
-    R[i] = transpose(K[i,:]) * (U) - F[i]
+
+      R[i] = transpose(K[i,:]) * (U) - F[i]
+   
    end
+
 
    return R
 
 end
 
 
-function solve(member_definitions, section_properties, material_properties, loads, springs, end_boundary_conditions, supports, imperfections)
+# function inelasticity_update(U, properties, free_dof)
 
-   K, F, free_dof, properties = define(member_definitions, section_properties, material_properties, loads, springs, end_boundary_conditions, supports, imperfections)
+
+   #calculate moment from deformation
+   #get cross-section cell discretization
+   #calculate strains from P+M along the column
+   #assign strain to each cell
+   #reduce area of cell based on tangent elastic modulus,  Acell * Etangent/Ei  
+   #calculate updated I
+
+
+
+
+function solve(properties, inelasticity_flag)
+
+
+   K, F, free_dof = equations(properties)
 
    num_nodes=length(properties.z)
 
@@ -274,13 +341,13 @@ function solve(member_definitions, section_properties, material_properties, load
 
    deformation_guess = K \ F    #consider revising this for large systems, it might be slow...
 
-   solution = nlsolve((R, U) ->residual!(R, U, K, F), deformation_guess)
+   solution = nlsolve((R, U) ->residual!(R, U, K, F, properties, free_dof, inelasticity_flag), deformation_guess)
 
    u[free_dof] = solution.zero[1:length(free_dof)]
    v[free_dof] = solution.zero[length(free_dof)+1:2*length(free_dof)]
    ϕ[free_dof] = solution.zero[2*length(free_dof)+1:3*length(free_dof)]
 
-   return u, v, ϕ, properties
+   return u, v, ϕ
 
 end
 

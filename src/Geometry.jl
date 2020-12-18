@@ -1,6 +1,6 @@
 module Geometry
 
-export rotation_matrix, vector_components, line_coordinates, circular_curve
+export rotation_matrix, vector_components, line_coordinates, circular_curve, triangle_area, triangle_centroid
 
 #counterclockwise, right hand rule  
 function rotation_matrix(θ)
@@ -118,7 +118,22 @@ function circular_curve(radius, interior_angle, xy_PI, PI_unit_normal, n)
 end
 
 
+# https://keisan.casio.com/has10/SpecExec.cgi?path=05000000.Mathematics%252F01000500.Plane%2520geometry%252F10010300.Area%2520of%2520a%2520triangle%2520with%2520three%2520points%252Fdefault.xml&charset=utf-8
+function triangle_area(x1, y1, x2, y2, x3, y3)
 
+    A = abs((x1*y2 + x2*y3 + x3*y1 - y1*x2 - y2*x3 - y3*x1)/2)
+
+end
+
+#https://www.mathopenref.com/coordcentroid.html
+function triangle_centroid(x1, y1, x2, y2, x3, y3)
+
+    cx = (x1 + x2 + x3)/3
+    cy = (y1 + y2 + y3)/3
+
+    return cx, cy
+
+end
 
 
 end #module
