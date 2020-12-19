@@ -119,40 +119,30 @@ n = [10, 10, 10]
 
 # unitnormals_test = [-dy, dx] / normAB
 
+# seg_1 = norm([σy, ϵy])
+# seg_2 = norm([(σy-σy1), (ϵy-ϵy1)])
+
+# θ1 = rad2deg(atan(σy/ϵy))
+
+# θ2 = rad2deg(atan((σy-σy1) / (ϵy-ϵy1)))
+
+# ΔL = [seg_1, seg_2]
+# θ = [θ1, θ2]  #degrees
+# n = [2, 2]
+# radius = [0.0001]  #outside radius
+# n_radius = [4]
+# closed_or_open = 1
 
 
-closed_or_open = 1
-unit_normals = CrossSection.surface_normals([0.0, ϵy, ϵy1], [0.0, σy, σy1], closed_or_open)
-node_normal = CrossSection.avg_node_normals(unit_normals, closed_or_open)
+# #define purlin
+# stess_strain_curve = CrossSection.Feature(ΔL, θ, n, radius, n_radius, closed_or_open)
 
-interior_angle = 90
-
-
-radius = 2.0
-xy_PI = [ϵy, σy]
-PI_unit_normal = node_normal[2,:]
-n_radius = 4
-xy_curve, Δ, E, T, xy_o, xy_BC, xy_EC, BC_unit_tangent, EC_unit_tangent, radius_unit_vector_BC = Geometry.circular_curve(radius, interior_angle, xy_PI, PI_unit_normal, n_radius)
-
-
-
+# #get outside x-y coordinates
+# xcoords_out, ycoords_out = CrossSection.get_xy_coordinates(stess_strain_curve)
 
 
 
 ϵ_s, σ_s  = MaterialModels.steel(σy, σy1, σu, σf, ϵy, ϵy1, ϵu, ϵf, n)
-
-
-
-
-
-
-
-
-PI_unit_normal
-    
-
-
-
 
 
 
@@ -161,7 +151,6 @@ spl = Spline1D(ϵ_s, σ_s)
 
 ϵ_s_check = 0:0.001:0.15
 
- steel = LinearInterpolation(ϵ_s, σ_s)
 
 #number of cross-sections 
 num_sections = length(z)
