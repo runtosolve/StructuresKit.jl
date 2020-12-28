@@ -16,10 +16,6 @@ export Geometry
 include("Geometry.jl")
 using .Geometry
 
-export MaterialModels
-include("MaterialModels.jl")
-using .MaterialModels
-
 export Mesh
 include("Mesh.jl")
 using .Mesh
@@ -31,6 +27,10 @@ using .Connections
 export CrossSection
 include("CrossSection.jl")
 using .CrossSection
+
+export MaterialModels
+include("MaterialModels.jl")
+using .MaterialModels
 
 export InternalForces
 include("InternalForces.jl")

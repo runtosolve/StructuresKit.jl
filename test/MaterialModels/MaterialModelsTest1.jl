@@ -35,21 +35,13 @@ plot(xcoords, ycoords, markershape = :o)
 mesh_size = 0.01
 mesh = CrossSection.triangular_mesh(xcoords, ycoords, mesh_size)
 
-Ai, cxi, cyi = CrossSection.triangulation_properties(mesh)
+Ai, cxi, cyi = CrossSection.triangular_mesh_properties(mesh)
 
 cx, cy = CrossSection.centroid_from_cells(Ai, cxi, cyi)
 
 
-# function moment_of_inertia_from_cells(Ai, ci, c)
-
-#     I = sum(((c .- ci) .^2 .* Ai))
-
-#     return I
-
-# end
-
-Ix = moment_of_inertia_from_cells(Ai, cyi, cy)
-Iy = moment_of_inertia_from_cells(Ai, cxi, cx)
+Ix = CrossSection.moment_of_inertia_from_cells(Ai, cyi, cy)
+Iy = CrossSection.moment_of_inertia_from_cells(Ai, cxi, cx)
 
 
 

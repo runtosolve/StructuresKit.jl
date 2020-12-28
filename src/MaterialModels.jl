@@ -21,8 +21,8 @@ function steel(σy, σy1, σu, σf, ϵy, ϵy1, ϵu, ϵf, n)
     ΔL = [seg_1, seg_2]
     θ = [θ1, θ2]  #degrees
     n_ep = [n[1], n[2]]          #hard code this for now
-    radius = [0.0001]  #hard code this for now
-    n_radius = [4]     #hard code this for now
+    radius = [0.001]  #hard code this for now
+    n_radius = [400]     #hard code this for now
     closed_or_open = 1
     
     
