@@ -3,10 +3,6 @@ using StructuresKit
 using DiffEqOperators
 
 
-
-# NumberOfNodes = 5
-# Azzzz = UpwindDifference(NthDerivative, DerivativeOrder, dz, NumberOfNodes)
-
 shape_name = "W14X90"
 
 shape_info = StructuresKit.CrossSection.AISC(shape_name)
@@ -19,12 +15,13 @@ section_properties = [(shape_info.A, shape_info.Ix, shape_info.Iy, shape_info.J,
 n_Wshape=(4, 2, 4, 4, 4)
 xcoords, ycoords = CrossSection.wshape_nodes(shape_info, n_Wshape)
 
+
 mesh_size = 0.01
-mesh = CrossSection.triangular_mesh(xcoords, ycoords, mesh_size)
+# mesh = CrossSection.triangular_mesh(xcoords, ycoords, mesh_size)
 
-Ai, cxi, cyi = CrossSection.triangular_mesh_properties(mesh)
+# Ai, cxi, cyi = CrossSection.triangular_mesh_properties(mesh)
 
-cx, cy = CrossSection.centroid_from_cells(Ai, cxi, cyi)
+
 
 
 #E  ν
@@ -95,8 +92,27 @@ loads = P * ones(num_nodes)
 #define column information
 properties = Column.initialize(member_definitions, section_properties, material_properties, loads, springs, end_boundary_conditions, supports, imperfections)
 
+#add column cross-section triangulation
+properties = CrossSection.add_cross_section_mesh(properties, xcoords, ycoords, mesh_size)
+#check this!
+
+#add solution controls struct 
+#write first yield criteria, consider new module inelasticity
+#finish solution updating
+
+cx, cy = CrossSection.centroid_from_cells(Ai, cxi, cyi)
+
+
+
+
+
+
 #solve for column deformation
 u, v, ϕ = Column.solve(properties, inelasticity_flag)
+
+
+#if column yields, set I = 0 at the location of first yield.
+
 
 
 #calculate moment
@@ -227,6 +243,7 @@ for i = 2:10
     ϵ_total_max = maximum(abs.(ϵ_total))  #old
 
     if i > 2
+
         change_in_ϵ_total = abs((ϵ_total_i_max - ϵ_total_max)/ϵ_total_max)
 
         if change_in_ϵ_total < 0.01
@@ -260,4 +277,6 @@ end
 
 # end
 
+Myy = InternalForces.moment(properties.z, properties.dm, -u, properties.E, properties.Iy)
+ϵ_axial, ϵ_flexure, ϵ_total = calculate_strain(P, Myy[78], A[i-1], Iyy[i-1], cx[i-1], cxi, Es)
 

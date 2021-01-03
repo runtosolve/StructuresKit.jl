@@ -11,7 +11,7 @@ using ..Geometry
 export CUFSM_CZcenterline, CUFSMtemplate, CUFSMsection_properties, CZflange_template, AISC, wshape_nodes,
        assemble, Feature, Deck, surface_normals, avg_node_normals, xycoords_along_normal, create_CUFSM_node_elem,
        discretize_feature, feature_geometry, get_xy_coordinates, area_from_cells, centroid_from_cells, moment_of_inertia_from_cells,
-       triangular_mesh_properties
+       triangular_mesh_properties, add_cross_section_mesh
 
 
 struct WShape
@@ -1413,6 +1413,22 @@ function triangular_mesh_properties(mesh)
 
 end
 
+
+
+function add_cross_section_mesh(properties, xcoords, ycoords, mesh_size)
+
+    mesh = CrossSection.triangular_mesh(xcoords, ycoords, mesh_size)  
+    Ai, cxi, cyi = CrossSection.triangular_mesh_properties(mesh)
+ 
+    properties.xcoords = xcoords
+    properties.ycoords = ycoords
+    properties.Ai = Ai
+    properties.cxi = cxi
+    properties.cyi = cyi
+ 
+    return properties
+ 
+ end
 
 
 end #module

@@ -9,6 +9,7 @@ using ..Mesh
 using ..InternalForces
 
 
+
 export Properties, initialize, solve, normal_stresses, normal_strains, warping_displacements, deformed_shape, calculate_derivative_operators, apply_end_boundary_conditions
 
 
@@ -177,6 +178,11 @@ mutable struct Properties
       Azz::Array{Float64,2}
       Azzzz::Array{Float64,2}
       supports::Array{Float64,1}
+      xcoords::Array{Float64,1}
+      ycoords::Array{Float64,1}
+      Ai::Array{Float64,1}
+      cxi::Array{Float64,1}
+      cyi::Array{Float64,1}
       
 end
 
@@ -234,11 +240,20 @@ function initialize(member_definitions, section_properties, material_properties,
    NthDerivative = 2
    Azz = apply_end_boundary_conditions(Azz, end_boundary_conditions, NthDerivative, dz)
 
-   properties = Properties(A, Ix, Iy, J, Cw, xc, yc, xs, ys, xo, yo, Io, E, ν, G, kx, ky, kϕ, hx, hy, uo, vo, ϕo, P, dz, z, dm, Azz, Azzzz, supports)
+   #initialize cross-section geometry and triangulation, add them later if needed
+   xcoords = []
+   ycoords = []
+   Ai = []
+   cxi = []
+   cyi = []
+
+   properties = Properties(A, Ix, Iy, J, Cw, xc, yc, xs, ys, xo, yo, Io, E, ν, G, kx, ky, kϕ, hx, hy, uo, vo, ϕo, P, dz, z, dm, Azz, Azzzz, supports, 
+   xcoords, ycoords, Ai, cxi, cyi)
 
    return properties
 
 end
+
 
 
 function equations(properties)
@@ -317,6 +332,18 @@ end
 
 # function inelasticity_update(U, properties, free_dof)
 
+
+#    num_sections = length(properties.z)
+
+#    for i=1:num_sections
+
+#       Myy = InternalForces.moment(properties.z, properties.dm, -U, properties.E, properties.Iy)
+#       ϵ_axial, ϵ_flexure, ϵ_total = calculate_strain(P, Myy[i], A[i], Iyy[i], cx, cxi, Es)
+
+#       if abs(ϵ_total) < ϵ_limit
+
+
+#    end
 
    #calculate moment from deformation
    #get cross-section cell discretization
