@@ -1,5 +1,9 @@
 module StructuresKit
 
+export AISC360_16
+include("AISC360_16.jl")
+using .AISC360_16
+
 export AISIS10016
 include("AISIS10016.jl")
 using .AISIS10016

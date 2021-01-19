@@ -11,23 +11,12 @@ shape_info = StructuresKit.CrossSection.AISC(shape_name)
 section_properties = [(shape_info.A, shape_info.Ix, shape_info.Iy, shape_info.J, shape_info.Cw, 0.0, shape_info.d/2, 0.0, shape_info.d/2)]
 
 #define column cross-section mesh
-
 n_Wshape=(4, 2, 4, 4, 4)
-xcoords, ycoords = CrossSection.wshape_nodes(shape_info, n_Wshape)
-
-
 mesh_size = 0.01
-# mesh = CrossSection.triangular_mesh(xcoords, ycoords, mesh_size)
+xcoords, ycoords = CrossSection.wshape_nodes(shape_info, n_Wshape)
+section_geometry = Column.SectionGeometry(xcoords, ycoords, mesh_size)
 
-# Ai, cxi, cyi = CrossSection.triangular_mesh_properties(mesh)
-
-
-
-
-#E  ν
-material_properties = [(29000,0.30)]
-
-
+#define material properties
 Es = 29000.0
 σy = 50.0                   #steel yield stress
 σy1 = 50.0                    #steel yield stress
@@ -39,11 +28,18 @@ Es = 29000.0
 ϵf = 0.21             #steel fracture strain
 n = [1000, 1000, 1000]
 
-ϵ_s, σ_s  = MaterialModels.steel(σy, σy1, σu, σf, ϵy, ϵy1, ϵu, ϵf, n)
+#E  ν
 
-using Dierckx
-stress_strain_curve = Spline1D(ϵ_s, σ_s)
+material_properties = [(29000,0.30, σy, σy1, σu, σf, ϵy, ϵy1, ϵu, ϵf, n)]
 
+
+# steel_law = MaterialModels.steel(σy, σy1, σu, σf, ϵy, ϵy1, ϵu, ϵf, n)
+
+
+# using Dierckx
+# E_tan_spline = Spline1D(ϵ_s, E_tan)
+
+# cdm = spl(ϵ_s)
 
 #kx ky kϕ hx hy
 springs = [0.0, 0.0, 0.0, 0.0, 0.0]
@@ -85,30 +81,96 @@ Py = 50*shape_info.A
 #inelasticity
 inelasticity_flag = 0
 
-P = 0.892 * Py
+P = 0.88 * Py
 
 loads = P * ones(num_nodes)
 
+
+strain_limit = ϵy
+# solution_controls = Column.SolutionControls("follow stress-strain curve", strain_limit)
+# solution_controls = Column.SolutionControls("first yield", strain_limit)
+solution_controls = Column.SolutionControls(" ", strain_limit)
+
 #define column information
-properties = Column.initialize(member_definitions, section_properties, material_properties, loads, springs, end_boundary_conditions, supports, imperfections)
-
-#add column cross-section triangulation
-properties = CrossSection.add_cross_section_mesh(properties, xcoords, ycoords, mesh_size)
-#check this!
-
-#add solution controls struct 
-#write first yield criteria, consider new module inelasticity
-#finish solution updating
-
-cx, cy = CrossSection.centroid_from_cells(Ai, cxi, cyi)
-
-
-
-
+properties = Column.initialize(member_definitions, section_properties, section_geometry, material_properties, loads, springs, end_boundary_conditions, supports, imperfections, solution_controls)
 
 
 #solve for column deformation
-u, v, ϕ = Column.solve(properties, inelasticity_flag)
+u, v, ϕ = Column.solve(properties, solution_controls)
+
+
+# solution_controls = Column.SolutionControls(" ", strain_limit)
+# u, v, ϕ = Column.solve(properties, solution_controls)
+
+
+Myy = InternalForces.moment(properties.z, properties.dm, -u, properties.E, properties.Iy)
+
+
+
+function calculate_strain(P, Myy, A, Iyy, cx, cxi, E)
+
+    num_cells = length(cxi)
+    ϵ_axial = zeros(Float64, num_cells)
+    ϵ_flexure = zeros(Float64, num_cells)
+    ϵ_total = zeros(Float64, num_cells)
+ 
+    for i = 1:1:num_cells
+          ϵ_axial[i] = -P/(A * E) 
+          ϵ_flexure[i] = Myy/(E * Iyy) * (cxi[i] - cx)
+          ϵ_total[i] = ϵ_axial[i] + ϵ_flexure[i]
+ 
+    end
+ 
+    return ϵ_axial, ϵ_flexure, ϵ_total
+   
+ end
+ 
+ 
+ function update_cell_area(E_tan_spline, ϵ, Aio, E)
+
+    num_cells = length(Aio)
+    Ai = zeros(Float64, num_cells)
+    E_tan = zeros(Float64, num_cells)
+ 
+    for i = 1:num_cells
+ 
+        # order = 1
+        # x = (abs(ϵ[i]) - 2 * abs(ϵ[i])*1/1000):abs(ϵ[i])*1/1000:(abs(ϵ[i]) + 2 * abs(ϵ[i])*1/1000)
+        # x0 = x[1]
+        # sig = stress_strain_curve.(x)
+        
+        # stencil = Mesh.calculate_weights(order, x0, x)
+ 
+        E_tan[i] = E_tan_spline(abs(ϵ[i]))
+ 
+        Ai[i] = Aio[i] * E_tan[i]/E
+ 
+    end
+ 
+    return Ai, E_tan
+ 
+ end
+
+#    for i = 1:num_sections
+
+    i = 78
+      #calculate strain
+      ϵ_axial, ϵ_flexure, ϵ_total = calculate_strain(properties.P[i], Myy[i], properties.A[i], properties.Iy[i], properties.xc[i], properties.cxi, properties.E[i])
+
+      #update cross-section properties 
+      properties.Ai, E_tan_track = update_cell_area(E_tan_spline, ϵ_total, properties.Aio, properties.E[i])
+      properties.xc[i], properties.yc[i] = CrossSection.centroid_from_cells(properties.Ai, properties.cxi, properties.cyi)
+      # properties.A[i] = CrossSection.area_from_cells(properties.Ai)
+      properties.Iy[i] = CrossSection.moment_of_inertia_from_cells(properties.Ai, properties.cxi, properties.xc[i])
+
+      #catch numerical issues I noticed, need to dig into this more
+      if properties.A[i] <= 0.0
+         # properties.A[i] = 0.0
+         properties.Iy[i] = 0.0
+      end
+
+#    end
+
 
 
 #if column yields, set I = 0 at the location of first yield.
@@ -181,31 +243,7 @@ end
 
 #calculate tangent elastic modulus
     
- function update_cell_area(stress_strain_curve, ϵ, Aio, E)
 
-    num_cells = length(Aio)
-    Ai = zeros(Float64, num_cells)
-    E_tan = zeros(Float64, num_cells)
-
-    for i = 1:num_cells
-
-        order = 1
-        x = (abs(ϵ[i]) - 2 * abs(ϵ[i])*1/1000):abs(ϵ[i])*1/1000:(abs(ϵ[i]) + 2 * abs(ϵ[i])*1/1000)
-        x0 = x[1]
-        sig = stress_strain_curve.(x)
-        
-        stencil = Mesh.calculate_weights(order, x0, x)
-
-        E_tan[i] = sum(stencil .* sig)
-
-        # E_tan[i] = Dierckx.derivative(stress_strain_curve, abs(ϵ[i]))
-        Ai[i] = Aio[i] * E_tan[i]/E
-
-    end
-
-    return Ai, E_tan
-
-end
 
 
 # cx, Iyy = update_cross_section_properties(Ai, cxi, cyi, P, Myy[78], Es)

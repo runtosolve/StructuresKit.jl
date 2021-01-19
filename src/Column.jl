@@ -4,15 +4,78 @@ using DiffEqOperators: CenteredDifference
 using LinearAlgebra
 using RecursiveArrayTools: VectorOfArray
 using NLsolve
+using Dierckx
+using NumericalIntegration
+
 
 using ..Mesh
 using ..InternalForces
+using ..CrossSection
+using ..MaterialModels
+
+
+export Properties, SolutionControls, SectionGeometry, initialize, solve, normal_stresses, normal_strains, warping_displacements, 
+         deformed_shape, calculate_derivative_operators, apply_end_boundary_conditions
 
 
 
-export Properties, initialize, solve, normal_stresses, normal_strains, warping_displacements, deformed_shape, calculate_derivative_operators, apply_end_boundary_conditions
+mutable struct Properties
 
+   A::Array{Float64,1}
+   Ix::Array{Float64,1}
+   Iy::Array{Float64,1}
+   J::Array{Float64,1}
+   Cw::Array{Float64,1}
+   xc::Array{Float64,1}
+   yc::Array{Float64,1}
+   xs::Array{Float64,1}
+   ys::Array{Float64,1}
+   xo::Array{Float64,1}
+   yo::Array{Float64,1}
+   Io::Array{Float64,1}
+   E::Array{Float64,1}
+   ν::Array{Float64,1}
+   G::Array{Float64,1}
+   kx::Float64
+   ky::Float64
+   kϕ::Float64
+   hx::Float64
+   hy::Float64
+   uo::Array{Float64,1}
+   vo::Array{Float64,1}
+   ϕo::Array{Float64,1}
+   P::Array{Float64,1}
+   dz::Array{Float64,1}
+   z::Array{Float64,1}
+   dm::Array{Float64,1}
+   Azz::Array{Float64,2}
+   Azzzz::Array{Float64,2}
+   supports::Array{Float64,1}
+   xcoords::Array{Float64,1}
+   ycoords::Array{Float64,1}
+   Aio::Array{Float64,1}   #before plasticity begins
+   Ai::Array{Float64,1}
+   cxi::Array{Float64,1}
+   cyi::Array{Float64,1}
+   stress_strain::Dierckx.Spline1D
+   E_tan_strain::Dierckx.Spline1D
 
+end
+
+mutable struct SolutionControls
+
+   yield_criterion::String 
+   strain_limit::Float64
+
+end
+
+mutable struct SectionGeometry
+
+   xcoords::Array{Float64,1}
+   ycoords::Array{Float64,1}
+   mesh_size::Float64
+
+end
 
 function calculate_derivative_operators(dz)
 
@@ -146,49 +209,11 @@ function apply_end_boundary_conditions(A, EndBoundaryConditions, NthDerivative, 
 
 end
 
-mutable struct Properties
 
-      A::Array{Float64,1}
-      Ix::Array{Float64,1}
-      Iy::Array{Float64,1}
-      J::Array{Float64,1}
-      Cw::Array{Float64,1}
-      xc::Array{Float64,1}
-      yc::Array{Float64,1}
-      xs::Array{Float64,1}
-      ys::Array{Float64,1}
-      xo::Array{Float64,1}
-      yo::Array{Float64,1}
-      Io::Array{Float64,1}
-      E::Array{Float64,1}
-      ν::Array{Float64,1}
-      G::Array{Float64,1}
-      kx::Float64
-      ky::Float64
-      kϕ::Float64
-      hx::Float64
-      hy::Float64
-      uo::Array{Float64,1}
-      vo::Array{Float64,1}
-      ϕo::Array{Float64,1}
-      P::Array{Float64,1}
-      dz::Array{Float64,1}
-      z::Array{Float64,1}
-      dm::Array{Float64,1}
-      Azz::Array{Float64,2}
-      Azzzz::Array{Float64,2}
-      supports::Array{Float64,1}
-      xcoords::Array{Float64,1}
-      ycoords::Array{Float64,1}
-      Ai::Array{Float64,1}
-      cxi::Array{Float64,1}
-      cyi::Array{Float64,1}
-      
-end
 
    
 
-function initialize(member_definitions, section_properties, material_properties, loads, springs, end_boundary_conditions, supports, imperfections)
+function initialize(member_definitions, section_properties, section_geometry, material_properties, loads, springs, end_boundary_conditions, supports, imperfections, solution_controls)
 
    dz, z, dm = Mesh.define_line_element(member_definitions)
 
@@ -240,23 +265,50 @@ function initialize(member_definitions, section_properties, material_properties,
    NthDerivative = 2
    Azz = apply_end_boundary_conditions(Azz, end_boundary_conditions, NthDerivative, dz)
 
+   
    #initialize cross-section geometry and triangulation, add them later if needed
-   xcoords = []
-   ycoords = []
+   xcoords = section_geometry.xcoords
+   ycoords = section_geometry.ycoords
    Ai = []
+   Aio = []
    cxi = []
    cyi = []
 
-   properties = Properties(A, Ix, Iy, J, Cw, xc, yc, xs, ys, xo, yo, Io, E, ν, G, kx, ky, kϕ, hx, hy, uo, vo, ϕo, P, dz, z, dm, Azz, Azzzz, supports, 
-   xcoords, ycoords, Ai, cxi, cyi)
+   #initialize inelasticity
+   if isempty(solution_controls.yield_criterion) 
 
+      stress_strain_curve = []
+
+   else   #need to generalize this to any material
+
+      σy = material_properties[1][3]
+      σy1 = material_properties[1][4]
+      σu = material_properties[1][5]
+      σf = material_properties[1][6]
+      ϵy = material_properties[1][7]
+      ϵy1 = material_properties[1][8]
+      ϵu = material_properties[1][9]
+      ϵf = material_properties[1][10]
+      n = material_properties[1][11]
+
+      Ai, cxi, cyi = CrossSection.mesh(section_geometry.xcoords, section_geometry.ycoords, section_geometry.mesh_size)
+      Aio = deepcopy(Ai)   #preserve inital cross-section cells
+      steel_law  = MaterialModels.steel(σy, σy1, σu, σf, ϵy, ϵy1, ϵu, ϵf, n)
+
+
+   end
+
+   properties = Properties(A, Ix, Iy, J, Cw, xc, yc, xs, ys, xo, yo, Io, E, ν, G, kx, ky, kϕ, hx, hy, uo, vo, ϕo, P, dz, z, dm, Azz, Azzzz, supports, 
+   xcoords, ycoords, Aio, Ai, cxi, cyi, steel_law.stress_strain, steel_law.E_tan_strain)
+
+   
    return properties
 
 end
 
 
 
-function equations(properties)
+function equations!(properties)
 
 
    NumberOfNodes=length(properties.dz)+1
@@ -310,13 +362,138 @@ function equations(properties)
 
 end
 
-function residual!(R, U, K, F, properties, free_dof, inelasticity_flag)
+function inelasticity_update_first_yield(U, properties, solution_controls, free_dof)
 
-   if inelasticity_flag == 1
 
-      K, F = inelasticity_update(U, properties, free_dof)
+   num_sections = length(properties.z)
+
+   u = zeros(num_sections)
+
+   u[free_dof] = U[1:length(free_dof)]   #this is specific to u displacements right now, need to generalize at some point
+
+   Myy = InternalForces.moment(properties.z, properties.dm, -u, properties.E, properties.Iy)
+
+   for i=1:num_sections
+      
+      ϵ_axial, ϵ_flexure, ϵ_total = calculate_strain(properties.P[i], Myy[i], properties.A[i], properties.Iy[i], properties.xc[i], properties.cxi, properties.E[i])
+
+      if maximum(abs.(ϵ_total)) > solution_controls.strain_limit
+
+         properties.Iy[i] = 0.50 * 362.0
+
+      end
+      
+   end
+
+   return properties
+
+end
+
+
+#check this!!!!
+
+function inelasticity_update!(U, properties, solution_controls, free_dof)
+
+   num_sections = length(properties.z)
+
+   u = zeros(num_sections)
+
+   u[free_dof] = U[1:length(free_dof)]   #this is specific to u displacements right now, need to generalize at some point
+
+   Myy = InternalForces.moment(properties.z, properties.dm, -u, properties.E, properties.Iy)
+
+   Myy[1] = 0.0   #checking
+   Myy[end] = 0.0
+
+   for i = 1:num_sections
+      #calculate strain
+      ϵ_axial, ϵ_flexure, ϵ_total = calculate_strain(properties.P[i], Myy[i], properties.A[i], properties.Iy[i], properties.xc[i], properties.cxi, properties.E[i])
+
+      if maximum(abs.(ϵ_total)) > solution_controls.strain_limit
+         #update cross-section properties 
+         # properties.Ai = update_cell_area(properties.E_tan_strain, abs.(ϵ_total), properties.Aio, properties.E[i])
+
+         Ai_temp = update_cell_area(properties.E_tan_strain, abs.(ϵ_total), properties.Aio, properties.E[i])
+
+         if Ai_temp < properties.Ai
+
+            properties.Ai = Ai_temp
+
+         end
+
+
+         properties.xc[i], properties.yc[i] = CrossSection.centroid_from_cells(properties.Ai, properties.cxi, properties.cyi)
+         # properties.A[i] = CrossSection.area_from_cells(properties.Ai)
+
+         properties.Iy[i] = CrossSection.moment_of_inertia_from_cells(properties.Ai, properties.cxi, properties.xc[i])
+
+         #catch numerical issues I noticed, need to dig into this more
+         if properties.A[i] <= 0.0
+            # properties.A[i] = 0.0
+            properties.Iy[i] = 0.0
+         end
+
+      end
 
    end
+
+
+  
+   # plot(properties.z, properties.Iy, seriestype = :scatter)
+
+   return properties
+
+end
+
+
+
+function update_cell_area(E_tan_strain, ϵ, Aio, E)
+
+   num_cells = length(Aio)
+   Ai = zeros(Float64, num_cells)
+   E_tan = zeros(Float64, num_cells)
+
+   for i = 1:num_cells
+
+       E_tan[i] = E_tan_strain(abs(ϵ[i]))
+
+       Ai[i] = Aio[i] * E_tan[i]/E
+
+   end
+
+   return Ai
+
+end
+
+
+
+
+function residual!(R, U, K, F, free_dof, solution_controls)
+
+   if solution_controls.yield_criterion == "first yield"
+
+      # properties = inelasticity_update_first_yield(U, properties, solution_controls, free_dof)
+      # K, F, free_dof = equations(properties)
+
+   elseif solution_controls.yield_criterion =="follow stress-strain curve"
+      # properties = inelasticity_update!(U, properties, solution_controls, free_dof)
+      # K, F, free_dof = equations!(properties)
+
+      # # println(sum(properties.Ai))
+
+      # for i=1:length(F)
+
+      #    R[i] = transpose(K[i,:]) * (U) - F[i]
+      
+      # end
+
+      # return R
+
+      # println("cdm")
+
+   end
+
+   # K, F, free_dof = equations!(properties)
 
    for i=1:length(F)
 
@@ -330,35 +507,36 @@ function residual!(R, U, K, F, properties, free_dof, inelasticity_flag)
 end
 
 
-# function inelasticity_update(U, properties, free_dof)
+function calculate_strain(P, Myy, A, Iyy, cx, cxi, E)
 
+   num_cells = length(cxi)
+   ϵ_axial = zeros(Float64, num_cells)
+   ϵ_flexure = zeros(Float64, num_cells)
+   ϵ_total = zeros(Float64, num_cells)
 
-#    num_sections = length(properties.z)
+   for i = 1:1:num_cells
+         ϵ_axial[i] = -P/(A * E) 
+         ϵ_flexure[i] = Myy/(E * Iyy) * (cxi[i] - cx)
+         ϵ_total[i] = ϵ_axial[i] + ϵ_flexure[i]
 
-#    for i=1:num_sections
+   end
 
-#       Myy = InternalForces.moment(properties.z, properties.dm, -U, properties.E, properties.Iy)
-#       ϵ_axial, ϵ_flexure, ϵ_total = calculate_strain(P, Myy[i], A[i], Iyy[i], cx, cxi, Es)
-
-#       if abs(ϵ_total) < ϵ_limit
-
-
-#    end
-
-   #calculate moment from deformation
-   #get cross-section cell discretization
-   #calculate strains from P+M along the column
-   #assign strain to each cell
-   #reduce area of cell based on tangent elastic modulus,  Acell * Etangent/Ei  
-   #calculate updated I
+   return ϵ_axial, ϵ_flexure, ϵ_total
+  
+end
 
 
 
 
-function solve(properties, inelasticity_flag)
 
 
-   K, F, free_dof = equations(properties)
+
+
+
+function solve(properties, solution_controls)
+
+
+   K, F, free_dof = equations!(properties)
 
    num_nodes=length(properties.z)
 
@@ -368,7 +546,7 @@ function solve(properties, inelasticity_flag)
 
    deformation_guess = K \ F    #consider revising this for large systems, it might be slow...
 
-   solution = nlsolve((R, U) ->residual!(R, U, K, F, properties, free_dof, inelasticity_flag), deformation_guess)
+   solution = nlsolve((R, U) ->residual!(R, U, K, F, free_dof, solution_controls), deformation_guess)
 
    u[free_dof] = solution.zero[1:length(free_dof)]
    v[free_dof] = solution.zero[length(free_dof)+1:2*length(free_dof)]
@@ -464,7 +642,7 @@ function normal_stains(properties, σ_total_normal)
 
 end
 
-using NumericalIntegration
+
 
 #integrate strains to calculate warping displacements
 
@@ -480,9 +658,9 @@ function warping_displacements(zcoords, ϵ_total_normal)
 
        for j = 1:num_cross_section_nodes
 
-           w_total[i,j] = integrate(zcoords[1:end], ϵ_total_normal[1:end,j])
+           w_total[i,j] = NumericalIntegration.integrate(zcoords[1:end], ϵ_total_normal[1:end,j])
            
-           w[i, j] = w_total[i,j]/2 - integrate(zcoords[1:i], ϵ_total_normal[1:i,j])  #not sure if this is general or not
+           w[i, j] = w_total[i,j]/2 - NumericalIntegration.integrate(zcoords[1:i], ϵ_total_normal[1:i,j])  #not sure if this is general or not
 
        end
 

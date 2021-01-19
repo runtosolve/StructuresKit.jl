@@ -1,6 +1,33 @@
 module AISIS10016
 
 
+function e2(Fcre, Fy, Ag, ASDorLRFD)
+
+    if ASDorLRFD==0
+        StrengthFactor=1/1.80
+    elseif ASDorLRFD==1
+        StrengthFactor=0.85
+    else
+        StrengthFactor=1.0   #to just get nominal strength
+    end
+
+    λc = sqrt(Fy/Fcre)
+
+    if λc <= 1.5
+        Fn = 0.658^((λc)^2) * Fy
+    else
+        Fn = (0.877 /(λc)^2) * Fy
+    end
+
+    Pne = Ag * Fn
+
+    ePne = Pne * StrengthFactor
+
+    return Pn, ePne
+
+end
+
+
 function f321(Mne, Mcrℓ, ASDorLRFD)
 
     if ASDorLRFD==0

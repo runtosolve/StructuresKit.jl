@@ -11,7 +11,7 @@ using ..Geometry
 export CUFSM_CZcenterline, CUFSMtemplate, CUFSMsection_properties, CZflange_template, AISC, wshape_nodes,
        assemble, Feature, Deck, surface_normals, avg_node_normals, xycoords_along_normal, create_CUFSM_node_elem,
        discretize_feature, feature_geometry, get_xy_coordinates, area_from_cells, centroid_from_cells, moment_of_inertia_from_cells,
-       triangular_mesh_properties, add_cross_section_mesh
+       triangular_mesh_properties, mesh
 
 
 struct WShape
@@ -1089,7 +1089,7 @@ function surface_normals(xcoords, ycoords, closed_or_open)
         end
 
         if unitnormals[i,2] == -0.0
-            unitnormals[i,1]= 0.0
+            unitnormals[i,2]= 0.0
         end
 
     end
@@ -1415,18 +1415,12 @@ end
 
 
 
-function add_cross_section_mesh(properties, xcoords, ycoords, mesh_size)
+function mesh(xcoords, ycoords, mesh_size)
 
-    mesh = CrossSection.triangular_mesh(xcoords, ycoords, mesh_size)  
-    Ai, cxi, cyi = CrossSection.triangular_mesh_properties(mesh)
+    section_mesh = CrossSection.triangular_mesh(xcoords, ycoords, mesh_size)  
+    Ai, cxi, cyi = CrossSection.triangular_mesh_properties(section_mesh)
  
-    properties.xcoords = xcoords
-    properties.ycoords = ycoords
-    properties.Ai = Ai
-    properties.cxi = cxi
-    properties.cyi = cyi
- 
-    return properties
+    return Ai, cxi, cyi
  
  end
 

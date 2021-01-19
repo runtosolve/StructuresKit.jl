@@ -2,11 +2,23 @@ module MaterialModels
 
 using Polynomials
 using LinearAlgebra
+using Dierckx
 
 using ..Geometry
 using ..CrossSection
+using ..Mesh
 
-export steel
+
+export steel, ConstitutiveLaw
+
+
+struct ConstitutiveLaw
+
+    stress_strain::Dierckx.Spline1D
+    E_tan_strain::Dierckx.Spline1D
+
+end
+
 
 function steel(σy, σy1, σu, σf, ϵy, ϵy1, ϵu, ϵf, n)
 
@@ -52,11 +64,47 @@ function steel(σy, σy1, σu, σf, ϵy, ϵy1, ϵu, ϵf, n)
     ϵ = [ϵ; ϵ_range[2:end]]
     σ = [σ; σ_fit[2:end]]
 
-    # add compression part of steel stress-strain curve
-    # σ = vcat(-reverse(σ[2:end]), σ)
-    # ϵ = vcat(-reverse(ϵ[2:end]), ϵ)
+    #calculate tangent elastic modulus
+    num_points = length(ϵ)
+    E_tan = zeros(Float64,  num_points)
+    order = 1
+    for i = 1:num_points
+ 
+        if i < num_points - 2
 
-    return ϵ, σ
+            x = ϵ[i:i+2]
+            x0 = x[1]
+    
+            stencil = Mesh.calculate_weights(order, x0, x)
+
+            E_tan[i] = sum(stencil .* σ[i:i+2])
+
+        elseif i > num_points - 2
+
+            x = ϵ[i-2:i]
+            x0 = x[3]
+    
+            stencil = Mesh.calculate_weights(order, x0, x)
+
+            E_tan[i] = sum(stencil .* σ[i-2:i])
+
+        end
+
+        #tough to round the corner at yielding, revisit this with better model of proportional limit
+        if E_tan[i] > E_tan[1]
+
+            E_tan[i] = E_tan[i-1]
+
+        end
+
+    end
+
+    stress_strain = Spline1D(ϵ, σ)
+    E_tan_strain = Spline1D(ϵ, E_tan)
+
+    steel_law = ConstitutiveLaw(stress_strain, E_tan_strain)
+
+    return steel_law
 
 end
 
