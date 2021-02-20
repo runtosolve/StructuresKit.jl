@@ -10,42 +10,38 @@ using StructuresKit
 #inputs
 
 #Ix Iy Ixy J Cw
-SectionProperties = [(3.230E6,449530,-865760, 397.09, 3.4104E9)]
-
+section_properties = [(3.230E6,449530,-865760, 397.09, 3.4104E9)]
 
 #E  ν
-MaterialProperties = [(200,0.30)]
+material_properties = [(200,0.30)]
 
 #ax ay
-LoadLocation = [(0.0, 0.0)]
-
+load_location = [(0.0, 0.0)]
 
 #kx kϕ
-SpringStiffness = [(0.0, 0.0)]
+spring_stiffness = [(0.0, 0.0)]
 
-#roof slope
-RoofSlope = [0.0]   #degrees
+#ay_kx
+spring_location = [(0.0)]
 
 #member information
 #L dL SectionProperties MaterialProperties LoadLocation SpringStiffness RoofSlope
-MemberDefinitions = [(7620,7620/12,1,1,1,1,1)]
+member_definitions = [(7620,7620/12,1,1,1,1,1)]
 
 #end boundary conditions
 #type=1 u''=v''=ϕ''=0 (simply supported), type=2 u'=v'=ϕ'=0  (fixed), type=3 u''=v''=ϕ''=u'''=v'''=ϕ'''=0 (free end, e.g., a cantilever)
-EndBoundaryConditions = [1 1]
+end_boundary_conditions = [1 1]
 
 #supports
 #location where u=v=ϕ=0
-Supports = [0.0 7620]
+supports = [0.0 7620]
 
-UniformLoad = (0.0, 0.008/1000)  #kN/mm
+load = (0.0, 0.008/1000)  #kN/mm
 
-z, u, v, ϕ, BeamProperties = Beam.solve(MemberDefinitions, SectionProperties, MaterialProperties, LoadLocation, SpringStiffness, EndBoundaryConditions, Supports, UniformLoad)
+z, u, v, ϕ, beam_properties = ThinWalledBeam.solve(member_definitions, section_properties, material_properties, spring_stiffness, spring_location, supports, load, load_location, end_boundary_conditions)
 
 umax=maximum(u)
-
 vmax=maximum(v)
-
 ϕmax=maximum(ϕ)
 
 #results from LS-DYNA

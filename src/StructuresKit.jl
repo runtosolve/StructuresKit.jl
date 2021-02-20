@@ -40,9 +40,9 @@ export InternalForces
 include("InternalForces.jl")
 using .InternalForces
 
-export Beam
-include("Beam.jl")
-using .Beam
+export ThinWalledBeam
+include("ThinWalledBeam.jl")
+using .ThinWalledBeam
 
 export Column
 include("Column.jl")
@@ -56,9 +56,9 @@ export Visualize
 include("Visualize.jl")
 using .Visualize
 
-export PurlinDesigner
-include("PurlinDesigner.jl")
-using .PurlinDesigner
+# export PurlinDesigner
+# include("PurlinDesigner.jl")
+# using .PurlinDesigner
 
 export LSDYNA
 include("LSDYNA.jl")

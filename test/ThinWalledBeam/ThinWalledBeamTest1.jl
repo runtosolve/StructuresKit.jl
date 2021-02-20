@@ -7,7 +7,7 @@ using StructuresKit
 #kϕ=300 N*mm/rad/mm, kx=0, gravity load
 #This solution was calculated with Mathematica
 #  max ϕ    q
-PlautSolution=[0.0 0.0
+plaut_solution=[0.0 0.0
 0.0221 0.2
 0.0476 0.4
 0.0771 0.6
@@ -25,57 +25,55 @@ PlautSolution=[0.0 0.0
 0.3853 1.7
 0.4003 1.73]
 
-#*********** PlautBeam solution
+#*********** Julia solution
 
 #inputs
 
 #Ix Iy Ixy J Cw
-SectionProperties = [(3.230E6,449530,-865760, 397.09, 3.4104E9)]
-
+section_properties = [(3.230E6,449530,-865760, 397.09, 3.4104E9)]
 
 #E  ν
-MaterialProperties = [(200,0.30)]
+material_properties = [(200,0.30)]
 
 #ax ay
-LoadLocation = [(27.826,101.6)]
-
+load_location = [(27.826,101.6)]
 
 #kx kϕ
-SpringStiffness = [(0.0,300/1000)]
+spring_stiffness = [(0.0,300/1000)]
 
-#roof slope
-RoofSlope = [0.0]   #degrees
+#ay_kx
+spring_location = [(101.6)]
 
 #member information
-#L dL SectionProperties MaterialProperties LoadLocation SpringStiffness RoofSlope
-MemberDefinitions = [(7620,7620/12,1,1,1,1,1)]
+#L dL section_properties material_properties load_location spring_stiffness spring_location
+member_definitions = [(7620, 7620/12 ,1, 1, 1, 1, 1)]
 
 #end boundary conditions
 #type=1 u''=v''=ϕ''=0 (simply supported), type=2 u'=v'=ϕ'=0  (fixed), type=3 u''=v''=ϕ''=u'''=v'''=ϕ'''=0 (free end, e.g., a cantilever)
-EndBoundaryConditions = [1 1]
+end_boundary_conditions = [1 1]
 
 #supports
 #location where u=v=ϕ=0
-Supports = [0.0 7620]
+supports = [0.0 7620]
 
 #initialize twist vector
-ϕmax=zeros(length(PlautSolution[:,1]))
+ϕmax=zeros(length(plaut_solution[:,1]))
 
 #calculate max twist with PlautBeam
-for i=1:length(PlautSolution[:,1])
+for i=1:length(plaut_solution[:,1])
 
-    UniformLoad = (0.0, PlautSolution[i,2]/1000)  #kN/mm
+    load = (0.0, plaut_solution[i,2]/1000)  #kN/mm
 
-    z, u, v, ϕ, BeamProperties = Beam.solve(MemberDefinitions, SectionProperties, MaterialProperties, LoadLocation, SpringStiffness, EndBoundaryConditions, Supports, UniformLoad)
+    z, u, v, ϕ, beam_properties = ThinWalledBeam.solve(member_definitions, section_properties, material_properties, spring_stiffness, spring_location, supports, load, load_location, end_boundary_conditions)
 
-    ϕmax[i]=maximum(ϕ)
+    ϕmax[i] = maximum(ϕ)
 
 end
 
 #calculate percent error at every load compared to Mathematica solution
-Error= abs.((ϕmax .- PlautSolution[:,1]))./ PlautSolution[:,1]
+error= abs.((ϕmax .- plaut_solution[:,1]))./ plaut_solution[:,1]
 
-MaxError=maximum(Error[2:end])
+max_error=maximum(error[2:end])
 
 #accept 1% error from numerical solution
-@test MaxError <= 0.01
+@test max_error <= 0.01

@@ -168,11 +168,15 @@ for i = 1:length(P)
 end
 
 using Plots
-plot(u_total_max * 25.4, P * 4.448, markershape = :o)
-Plots.xlims!(0, 10)
-# Plots.ylims!(0, 1)
-Plots.xlabel!("")
+SSRC = plot(u_total_max * 25.4, P * 4.448, markershape = :o, legend = false, fmt = :pdf)
+Plots.xlims!(0, 8)
+Plots.ylims!(0, 6000)
+Plots.xlabel!("column midheight deflection, mm")
+Plots.ylabel!("column compressive load, kN")
 
+display(SSRC)
+
+savefig(SSRC, "SSRC.pdf")
 
 
 

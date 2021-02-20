@@ -71,6 +71,27 @@ struct Open
 
 end
 
+struct SectionProperties
+
+    A::Float64
+    xc::Float64
+    yc::Float64
+    Ixx::Float64
+    Iyy::Float64
+    Ixy::Float64
+    θ::Float64
+    I1::Float64
+    I2::Float64
+    J::Float64
+    xs::Float64
+    ys::Float64
+    Cw::Float64
+    B1::Float64
+    B2::Float64
+    wn::Array{Float64, 1}
+
+end
+
 
 
 function CUFSM_CZcenterline(H,B1,D1,q1,B2,D2,q2,ri1,ri2,ri3,ri4,t)
@@ -477,12 +498,14 @@ function CUFSMsection_properties(coord,ends)
     if section == "close"
         xnele = (nele-1)
         for i = 1:xnele
-            en = ends; en[i,2] = 0
-            m,n = findall(ends[i,2]==en[:,1:2])
+            en = deepcopy(ends); en[i,2] = 0
+            index = findall(ends[i,2] .== en[:,1:2])  #update this for Julia, need to deal with CartesianIndex
+            m=index[1][1]
+            n=index[1][2]
             if n==1
                 ends[i+1,:] = en[m,:]
                 ends[m,:] = en[i+1,:]
-            elseif n .== 2
+            elseif n == 2
                 ends[i+1,:] = en[m,[2 1 3]]
                 ends[m,:] = en[i+1,[2 1 3]]
             end
@@ -569,6 +592,8 @@ function CUFSMsection_properties(coord,ends)
     I2 = sum((xd.^2/12+xm.^2).*L.*t)
 
     if section == "close"
+
+        p = zeros(Float64, nele)
         # compute the torsional constant for close-section
         for i = 1:nele
             sn = ends[i,1]
@@ -580,7 +605,7 @@ function CUFSMsection_properties(coord,ends)
             p[i] = ((coord[sn,1]-xc)*(coord[fn,2]-yc)-(coord[fn,1]-xc)*(coord[sn,2]-yc))/L[i]
         end
         J = 4*sum(p.*L/2)^2/sum(L./t)
-        xs = NaN; ys = NaN; Cw = NaN; B1 = NaN; B2 = NaN; Pe = NaN; dcoord = NaN; wn=NaN()
+        xs = NaN; ys = NaN; Cw = NaN; B1 = NaN; B2 = NaN; Pe = NaN; dcoord = NaN; wn=NaN
     elseif section == "open"
         # compute the torsional constant for open-section
         J = sum(L.*t.^3)/3
@@ -694,7 +719,7 @@ function CUFSMsection_properties(coord,ends)
         end
     elseif section == "arbitrary"
         J = sum(L.*t.^3)/3
-        xs = NaN; ys = NaN; Cw = NaN; B1 = NaN; B2 = NaN; Pe = NaN; dcoord = NaN; wn=NaN()
+        xs = NaN; ys = NaN; Cw = NaN; B1 = NaN; B2 = NaN; Pe = NaN; dcoord = NaN; wn=NaN
 
         #use the open section algorithm; modified to handle multiple parts; but
         #not completely generalized *that is a work for a future day* (17 Dec
@@ -738,7 +763,7 @@ function CUFSMsection_properties(coord,ends)
             Iwy = Iwy+(1/3*(w[sn,2]*(coord[sn,2]-yc)+w[fn,2]*(coord[fn,2]-yc))+1/6*(w[sn,2]*(coord[fn,2]-yc)+w[fn,2]*(coord[sn,2]-yc)))*t[i]* L[i];
         end
 
-        if (Ix*Iy-Ixy^2)~=0
+        if (Ix*Iy-Ixy^2) != 0
             xs = (Iy*Iwy-Ixy*Iwx)/(Ix*Iy-Ixy^2)+xc
             ys = -(Ix*Iwx-Ixy*Iwy)/(Ix*Iy-Ixy^2)+yc
         else
@@ -771,13 +796,13 @@ function CUFSMsection_properties(coord,ends)
             if wo[sn,1]==0
                 wo[sn,1] = sn;
                 wo[sn,2] = wo[fn,2]-po*L[i]
-            elseif wo[ends[i,2],1]==0
+            elseif wo[Int(ends[i,2]),1]==0
                 wo[fn,1] = fn;
                 wo[fn,2] = wo[sn,2]+po*L[i]
             end
             wno = wno+1/(2*A)*(wo[sn,2]+wo[fn,2])*t[i]* L[i];
         end
-        wn = wno-wo[:,2]
+        wn = wno .- wo[:,2]
 
         # compute the warping constant
         for i = 1:nele
@@ -819,7 +844,9 @@ function CUFSMsection_properties(coord,ends)
 
     end
 
-    return A,xc,yc,Ix,Iy,Ixy,theta,I1,I2,J,xs,ys,Cw,B1,B2,wn
+    section_properties = SectionProperties(A,xc,yc,Ix,Iy,Ixy,theta,I1,I2,J,xs,ys,Cw,B1,B2,wn)
+
+    return section_properties
 
 end
 
@@ -1068,13 +1095,12 @@ function surface_normals(xcoords, ycoords, closed_or_open)
 
     for i=1:numel
 
-        if i == numel & closed_or_open == 0   #for tubes
+        if (i == numel) & (closed_or_open == 0)   #for tubes
             pointA = Point(xcoords[i], ycoords[i])
             pointB = Point(xcoords[1], ycoords[1])
         else
             pointA = Point(xcoords[i], ycoords[i])
             pointB = Point(xcoords[i + 1], ycoords[i + 1])
-
         end
 
         dx = pointB.x - pointA.x
@@ -1117,7 +1143,7 @@ function avg_node_normals(unitnormals, closed_or_open)
         if (i == 1) & (closed_or_open == 0)  # where nodes meet in the tube
             nodenormals[i, :] = mean(unitnormals[[numel, 1], :], dims=1)
         elseif (i != 1) & (closed_or_open == 0)  #tube
-            nodenormals[i, :] = mean(unitnormals[i:i+1, :], dims=1)
+            nodenormals[i, :] = mean(unitnormals[i-1:i, :], dims=1)
         elseif (i == 1) & (closed_or_open == 1)  #open, first node is element norm
             nodenormals[i, :] = unitnormals[i, :]
         elseif (i != 1) & (i != numnodes) & (closed_or_open == 1)  #open

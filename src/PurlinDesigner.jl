@@ -1,9 +1,9 @@
 module PurlinDesigner
 
-#bring in local modules
+#Import local modules.
 using ..AISIS10016
 using ..AISIS10024
-using ..Beam
+using ..ThinWalledBeam
 using ..InternalForces
 using ..Mesh
 using ..BeamColumn
@@ -12,10 +12,99 @@ using ..CrossSection
 export line_strength, free_flange_define
 
 
-#calculated section strengths along a purlin line
-function sectionStrengths(ASDorLRFD, dz, dm, memberDefinitions, sectionProperties, crossSectionDimensions, materialProperties, loadLocation, bracingProperties, roofSlope, FlangeProperties)
+function define()
 
-    numberOfNodes = length(dz)+1
+    Fy = Mesh.create_line_element_property_array(member_definitions, dm, dz, material_properties, 4, 3)
+    Ixx = Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 1)
+    ho = Mesh.create_line_element_property_array(member_definitions, dm, dz, cross_section_dimensions, 7, 2)
+
+    ycy = ho./2  #distance from neutral axis to outer fiber
+    Sxx = Ixx./ycy
+    Myxx = Fy.*Sxx
+    Mnexx = Myxx
+    Mcrℓxx = Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 7)
+
+
+    Iyy = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, sectionProperties, 3, 2)
+
+    t = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, crossSectionDimensions, 7, 1)
+    b = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, crossSectionDimensions, 3, 3)
+    d = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, crossSectionDimensions, 3, 4)
+    θc = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, crossSectionDimensions, 3, 5)
+
+    #distance from neutral axis to outer fiber
+    ycx = b.+d.*cos.(deg2rad.(θc)) .-t./2
+    Syy = Iyy./ycx
+    Myyy = Fy.*Syy
+    Mneyy = Myyy
+    Mcrℓyy = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, sectionProperties, 3, 8)
+
+
+
+
+#Calculate local-global buckling interaction strength along the purlin line.
+function purlin_local_global_buckling_strength(Mne, Mcrℓ, ASDorLRFD)
+
+    num_nodes = length(Mne)
+
+    Mnℓ = zeros(Float64, num_nodes)
+    eMnℓ = zeros(Float64, num_nodes)
+
+    for i in eachindex(Mcrℓxx)
+        Mnℓ[i], eMnℓ[i] =  AISIS10016.f321(Mne[i], Mcrℓ[i], ASDorLRFD)
+    end
+
+    return Mnℓ, eMnℓ
+
+end
+
+#Calculate torsion strength along the purlin line.
+function purlin_torsion_strength(Cw, Fy, Wn, Bcrℓ, ASDorLRFD)
+
+    num_nodes = length(Cw)
+
+    Bn = zeros(Float64, numberOfNodes)
+    eBn = zeros(Float64, numberOfNodes)
+
+    for i in eachindex(Bcrℓ)
+        Bn[i], eBn[i] = AISIS10024.h411(Cw[i], Fy[i], Wn[i], Bcrℓ[i], ASDorLRFD)
+    end
+
+    return Bn, eBn
+
+end
+
+
+#Calculate distortional buckling strength along the purlin line.
+function purlin_distortional_buckling_strength(My, Mcrd, ASDorLRFD)
+
+    num_nodes = length(My)
+
+    Mnd = zeros(Float64, numberOfNodes)
+    eMnd = zeros(Float64, numberOfNodes)
+
+    for i in eachindex(Mcrd)
+        Mnd[i], eMnd[i] = AISIS10016.f411(My[i], Mcrd[i], ASDorLRFD)
+    end
+
+    return Mnd, eMnd
+
+end
+
+
+Vn = zeros(Float64, numberOfNodes)
+eVn = zeros(Float64, numberOfNodes)
+for i in eachindex(Vcr)
+    Vn[i], eVn[i] = AISIS10016.g21(E[i], h[i], t[i], Fy[i], Vcr[i], ASDorLRFD)
+end
+
+
+#
+
+#Calculated section strengths along a purlin line.
+function section_strengths(ASDorLRFD, dz, dm, member_definitions, section_properties, cross_section_dimensions, material_properties, load_location, bracing_properties, roof_slope, flange_properties)
+
+    num_nodes = length(dz)+1
 
     #calculate strength limit state capacities
 
