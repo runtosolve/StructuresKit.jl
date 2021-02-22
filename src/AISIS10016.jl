@@ -215,9 +215,9 @@ function app23331(CorZ, t, ho, b, d, θc, E, μ, G, f1, f2, M1, M2, CurvatureSig
 end
 
 
-function app23333(L, Lm, M1, M2, CurvatureSign)
+function app23333(L, Lm, M1, M2)
 
-    β=1+0.4(L/Lm)^0.7*(1+M1/M2*CurvatureSign)^0.7
+    β=1+0.4(L/Lm)^0.7*(1+M1/M2)^0.7
 
     if β>=1.3
         β=1.3
