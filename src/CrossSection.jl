@@ -605,7 +605,7 @@ function CUFSMsection_properties(coord,ends)
             p[i] = ((coord[sn,1]-xc)*(coord[fn,2]-yc)-(coord[fn,1]-xc)*(coord[sn,2]-yc))/L[i]
         end
         J = 4*sum(p.*L/2)^2/sum(L./t)
-        xs = NaN; ys = NaN; Cw = NaN; B1 = NaN; B2 = NaN; Pe = NaN; dcoord = NaN; wn=NaN
+        xs = NaN; ys = NaN; Cw = NaN; B1 = NaN; B2 = NaN; Pe = NaN; dcoord = NaN; wn=[NaN; NaN]
     elseif section == "open"
         # compute the torsional constant for open-section
         J = sum(L.*t.^3)/3
