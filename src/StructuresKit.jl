@@ -64,4 +64,8 @@ export LSDYNA
 include("LSDYNA.jl")
 using .LSDYNA
 
+export Truss
+include("Truss.jl")
+using .Truss
+
 end
