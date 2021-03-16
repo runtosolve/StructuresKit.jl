@@ -11,7 +11,7 @@ using ..Geometry
 export CUFSM_CZcenterline, CUFSMtemplate, CUFSMsection_properties, CZflange_template, AISC, wshape_nodes,
        assemble, Feature, Deck, surface_normals, avg_node_normals, xycoords_along_normal, create_CUFSM_node_elem,
        discretize_feature, feature_geometry, get_xy_coordinates, area_from_cells, centroid_from_cells, moment_of_inertia_from_cells,
-       triangular_mesh_properties, mesh
+       triangular_mesh_properties, mesh, SectionProperties
 
 
 struct WShape
@@ -73,6 +73,8 @@ end
 
 struct SectionProperties
 
+    node_geometry::Array{Float64, 2}
+    element_info::Array{Float64, 2}
     A::Float64
     xc::Float64
     yc::Float64
@@ -844,7 +846,7 @@ function CUFSMsection_properties(coord,ends)
 
     end
 
-    section_properties = SectionProperties(A,xc,yc,Ix,Iy,Ixy,theta,I1,I2,J,xs,ys,Cw,B1,B2,wn)
+    section_properties = SectionProperties(coord,ends,A,xc,yc,Ix,Iy,Ixy,theta,I1,I2,J,xs,ys,Cw,B1,B2,wn)
 
     return section_properties
 
@@ -1231,6 +1233,7 @@ function get_xy_coordinates(feature)
         θ1 = feature.θ[i]
         θ2 = feature.θ[i+1]
 
+
         if sign(θ1) != sign(θ2)   #don't think this is fully general
             interior_radius_angle[i] = 180 - (abs(θ1) + abs(θ2))
         end
@@ -1449,6 +1452,8 @@ function mesh(xcoords, ycoords, mesh_size)
     return Ai, cxi, cyi
  
  end
+
+
 
 
 end #module

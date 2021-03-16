@@ -237,7 +237,7 @@ function app23334(ho, μ, t, Ixf, xof, hxf, Cwf, Ixyf, Iyf, Lm)
 
     L=minimum([Lcrd, Lm])
 
-    return L
+    return Lcrd, L
 
 end
 

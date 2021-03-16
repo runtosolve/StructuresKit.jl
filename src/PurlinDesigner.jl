@@ -10,252 +10,309 @@ using ..BeamColumn
 using ..CrossSection
 
 # export line_strength, free_flange_define
-export define
+export define_purlin_cross_section
 
-struct PurlinLineProperties
 
-    Fy::Array{Float64, 1}
-    E::Array{Float64, 1}
-    μ::Array{Float64, 1}
-    G::Array{Float64, 1}
-    ho::Array{Float64, 1}
-    h::Array{Float64, 1}
-    t::Array{Float64, 1}
-    b_top::Array{Float64, 1}
-    b_bottom::Array{Float64, 1}
-    d::Array{Float64, 1}
-    θc::Array{Float64, 1}
-    Ixx::Array{Float64, 1}
-    Iyy::Array{Float64, 1}
-    c_y_top::Array{Float64, 1}
-    c_y_bottom::Array{Float64, 1}
-    c_x_left::Array{Float64, 1}
-    c_x_right::Array{Float64, 1}
-    Cw::Array{Float64, 1}
-    Wn::Array{Float64, 1}
-    Iyy_flange::Array{Float64, 1}
-    c_x_flange_left::Array{Float64, 1}
-    c_x_flange_right::Array{Float64, 1}
-    Sxx_top::Array{Float64, 1}
-    Sxx_bottom::Array{Float64, 1}
-    Syy_left::Array{Float64, 1}
-    Syy_right::Array{Float64, 1}
-    Syy_flange_left::Array{Float64, 1}
-    Syy_flange_right::Array{Float64, 1}
-    My_xx_top::Array{Float64, 1}
-    My_xx_bottom::Array{Float64, 1}
-    My_xx::Array{Float64, 1}
-    My_yy_left::Array{Float64, 1}
-    My_yy_right::Array{Float64, 1}
-    My_yy::Array{Float64, 1}
-    My_yy_flange_left::Array{Float64, 1}
-    My_yy_flange_right::Array{Float64, 1}
-    My_yy_flange::Array{Float64, 1}
-    Mcrℓ_xx::Array{Float64, 1}
-    Mcrℓ_yy::Array{Float64, 1}
-    Bcrℓ::Array{Float64, 1}
-    Mcrℓ_yy_flange::Array{Float64, 1}
-    CorZ::Array{Int, 1}
-    f1::Array{Float64, 1}
-    f2::Array{Float64, 1}
-    Lm::Array{Float64, 1}
-    M1::Array{Float64, 1}
-    M2::Array{Float64, 1}
-    kϕ_dist::Array{Float64, 1}
-    Sf_dist::Array{Float64, 1}
-    Mcrd::Array{Float64, 1}
-    a::Array{Float64, 1}
-    kv::Array{Float64, 1}
-    Fcrv::Array{Float64, 1}
-    Mne_xx::Array{Float64, 1}
-    Mne_yy::Array{Float64, 1}
-    Mne_flange_yy::Array{Float64, 1}
+function define_purlin_cross_section(cross_section_type, t, d1, b1, h, b2, d2, α1, α2, α3, α4, α5, r1, r2, r3, r4, n, n_radius)
+
+    if cross_section_type == "Z"
+
+        #Define the top Z purlin surface.   For the top flange, this means the out-to-out dimensions.  For the bottom flange, the interior outside dimensions should be used.
+
+        #First calculate the correction on out-to-out length to go from the outside surface to the inside bottom flange surface.
+        delta_lip_bottom = t / tan((π - deg2rad(abs(α2 - α1))) / 2)
+        delta_web_bottom = t / tan((π - deg2rad(abs(α3 - α2))) / 2)
+
+        #Note here that the bottom flange and lip dimensions are smaller here.
+        ΔL = [d1 - delta_lip_bottom, b1 - delta_lip_bottom - delta_web_bottom, h - delta_web_bottom, b2, d2]
+        θ = [α1, α2, α3, α4, α5]
+
+        #Note that the outside radius is used at the top flange, and the inside radius is used for the bottom flange.
+        radius = [r1 - t, r2 - t, r3, r4]  
+    
+        closed_or_open = 1
+
+        purlin = CrossSection.Feature(ΔL, θ, n, radius, n_radius, closed_or_open)
+
+        #Calculate the out-to-out purlin surface coordinates. 
+        xcoords_out, ycoords_out = CrossSection.get_xy_coordinates(purlin)
+
+        #Calculate centerline purlin coordinates.
+        unitnormals = CrossSection.surface_normals(xcoords_out, ycoords_out, closed_or_open)
+        nodenormals = CrossSection.avg_node_normals(unitnormals, closed_or_open)
+        xcoords_center, ycoords_center = CrossSection.xycoords_along_normal(xcoords_out, ycoords_out, nodenormals, -t/2)
+
+        #Shift y coordinates so that the bottom purlin face is at y = 0.
+        ycoords_center = ycoords_center .- minimum(ycoords_center) .+ t/2
+
+        #Shift x coordinates so that the purlin web centerline is at x = 0.
+        index = floor(Int, length(xcoords_center)/2)
+        xcoords_center = xcoords_center .- xcoords_center[index]
+
+    end
+
+    #Add C section here at some point.
+
+    #Package nodal geometry.
+    node_geometry = [xcoords_center ycoords_center]
+    
+    #Define cross-section element connectivity and thicknesses.
+    num_cross_section_nodes = length(xcoords_center)
+    element_info = [1:(num_cross_section_nodes - 1) 2:num_cross_section_nodes ones(num_cross_section_nodes - 1) * t]
+
+    return node_geometry, element_info
 
 end
 
 
-function define(member_definitions, dm, dz, material_properties, section_properties, cross_section_dimensions)
 
-    #MATERIAL PROPERTIES
 
-    #Define purlin yield stress.
-    Fy = Mesh.create_line_element_property_array(member_definitions, dm, dz, material_properties, 4, 3)
 
-    #Define purlin steel elastic modulus.
-    E = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, material_properties, 4, 1)
 
-    #Define purlin steel Poisson's ratio.
-    μ = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, material_properties, 4, 2)
+# struct PurlinLineProperties
+
+#     Fy::Array{Float64, 1}
+#     E::Array{Float64, 1}
+#     μ::Array{Float64, 1}
+#     G::Array{Float64, 1}
+#     ho::Array{Float64, 1}
+#     h::Array{Float64, 1}
+#     t::Array{Float64, 1}
+#     b_top::Array{Float64, 1}
+#     b_bottom::Array{Float64, 1}
+#     d::Array{Float64, 1}
+#     θc::Array{Float64, 1}
+#     Ixx::Array{Float64, 1}
+#     Iyy::Array{Float64, 1}
+#     c_y_top::Array{Float64, 1}
+#     c_y_bottom::Array{Float64, 1}
+#     c_x_left::Array{Float64, 1}
+#     c_x_right::Array{Float64, 1}
+#     Cw::Array{Float64, 1}
+#     Wn::Array{Float64, 1}
+#     Iyy_flange::Array{Float64, 1}
+#     c_x_flange_left::Array{Float64, 1}
+#     c_x_flange_right::Array{Float64, 1}
+#     Sxx_top::Array{Float64, 1}
+#     Sxx_bottom::Array{Float64, 1}
+#     Syy_left::Array{Float64, 1}
+#     Syy_right::Array{Float64, 1}
+#     Syy_flange_left::Array{Float64, 1}
+#     Syy_flange_right::Array{Float64, 1}
+#     My_xx_top::Array{Float64, 1}
+#     My_xx_bottom::Array{Float64, 1}
+#     My_xx::Array{Float64, 1}
+#     My_yy_left::Array{Float64, 1}
+#     My_yy_right::Array{Float64, 1}
+#     My_yy::Array{Float64, 1}
+#     My_yy_flange_left::Array{Float64, 1}
+#     My_yy_flange_right::Array{Float64, 1}
+#     My_yy_flange::Array{Float64, 1}
+#     Mcrℓ_xx::Array{Float64, 1}
+#     Mcrℓ_yy::Array{Float64, 1}
+#     Bcrℓ::Array{Float64, 1}
+#     Mcrℓ_yy_flange::Array{Float64, 1}
+#     CorZ::Array{Int, 1}
+#     f1::Array{Float64, 1}
+#     f2::Array{Float64, 1}
+#     Lm::Array{Float64, 1}
+#     M1::Array{Float64, 1}
+#     M2::Array{Float64, 1}
+#     kϕ_dist::Array{Float64, 1}
+#     Sf_dist::Array{Float64, 1}
+#     Mcrd::Array{Float64, 1}
+#     a::Array{Float64, 1}
+#     kv::Array{Float64, 1}
+#     Fcrv::Array{Float64, 1}
+#     Mne_xx::Array{Float64, 1}
+#     Mne_yy::Array{Float64, 1}
+#     Mne_flange_yy::Array{Float64, 1}
+
+# end
+
+
+# function define(member_definitions, dm, dz, material_properties, section_properties, cross_section_dimensions)
+
+#     #MATERIAL PROPERTIES
+
+#     #Define purlin yield stress.
+#     Fy = Mesh.create_line_element_property_array(member_definitions, dm, dz, material_properties, 4, 3)
+
+#     #Define purlin steel elastic modulus.
+#     E = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, material_properties, 4, 1)
+
+#     #Define purlin steel Poisson's ratio.
+#     μ = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, material_properties, 4, 2)
     
-    #Define purlin steel shear modulus.
-    G= E./(2 .*(1 .+ μ))
+#     #Define purlin steel shear modulus.
+#     G= E./(2 .*(1 .+ μ))
 
-    #CROSS-SECTION DIMENSIONS
+#     #CROSS-SECTION DIMENSIONS
       
-    #Define out to out purlin web height.
-    ho = Mesh.create_line_element_property_array(member_definitions, dm, dz, cross_section_dimensions, 7, 2)
+#     #Define out to out purlin web height.
+#     ho = Mesh.create_line_element_property_array(member_definitions, dm, dz, cross_section_dimensions, 7, 2)
 
-    #Define flat purlin web width.
-    h = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, crossSectionDimensions, 7, 7)
+#     #Define flat purlin web width.
+#     h = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, crossSectionDimensions, 7, 7)
 
-    #Define purlin base metal thickness.
-    t = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, cross_section_dimensions, 7, 1)
+#     #Define purlin base metal thickness.
+#     t = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, cross_section_dimensions, 7, 1)
 
-    #Define purlin out-to-out top flange width.
-    b_top = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, cross_section_dimensions, 3, 3)
+#     #Define purlin out-to-out top flange width.
+#     b_top = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, cross_section_dimensions, 3, 3)
 
-    #Define purlin out-to-out bottom flange width.
-    b_bottom = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, cross_section_dimensions, 3, 3)
+#     #Define purlin out-to-out bottom flange width.
+#     b_bottom = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, cross_section_dimensions, 3, 3)
 
-    #Define purlin out-to-out flange lip length.
-    d = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, cross_section_dimensions, 3, 4)
+#     #Define purlin out-to-out flange lip length.
+#     d = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, cross_section_dimensions, 3, 4)
 
-    #Define purlin lip angle from the horizontal, in degrees.
-    θc = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, cross_section_dimensions, 3, 5)
+#     #Define purlin lip angle from the horizontal, in degrees.
+#     θc = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, cross_section_dimensions, 3, 5)
 
-    #SECTION PROPERTIES
+#     #SECTION PROPERTIES
     
-    #Define purlin centroidal x-x moment of inertia.
-    Ixx = Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 1)
+#     #Define purlin centroidal x-x moment of inertia.
+#     Ixx = Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 1)
 
-    #Define purlin centroidal y-y moment of inertia.
-    Iyy = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, sectionProperties, 3, 2)
+#     #Define purlin centroidal y-y moment of inertia.
+#     Iyy = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, sectionProperties, 3, 2)
    
-    #Define y distance from purlin centroid to the top fiber.
-    c_y_top =  Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 1)  #check this...
+#     #Define y distance from purlin centroid to the top fiber.
+#     c_y_top =  Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 1)  #check this...
 
-    #Define y distance from purlin centroid to the bottom fiber.
-    c_y_bottom =  Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 1)  #check this...
+#     #Define y distance from purlin centroid to the bottom fiber.
+#     c_y_bottom =  Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 1)  #check this...
 
-    #Define x distance from purlin centroid to the leftmost fiber.
-    c_x_left =  Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 1)  #check this...
+#     #Define x distance from purlin centroid to the leftmost fiber.
+#     c_x_left =  Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 1)  #check this...
 
-    #Define x distance from purlin centroid to the rightmost fiber.
-    c_x_right =  Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 1)  #check this...
+#     #Define x distance from purlin centroid to the rightmost fiber.
+#     c_x_right =  Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 1)  #check this...
 
-    #Define purlin warping torsion constant.
-    Cw = Mesh.create_line_element_property_array(member_definitions, dm, dz, sectionProperties, 3, 5)
+#     #Define purlin warping torsion constant.
+#     Cw = Mesh.create_line_element_property_array(member_definitions, dm, dz, sectionProperties, 3, 5)
 
-    #Define normalized maximum warping stress in the purlin cross-section.
-    Wn = Mesh.create_line_element_property_array(member_definitions, dm, dz, sectionProperties, 3, 6)
+#     #Define normalized maximum warping stress in the purlin cross-section.
+#     Wn = Mesh.create_line_element_property_array(member_definitions, dm, dz, sectionProperties, 3, 6)
 
-    #Define moment of inertia of the bottom purlin flange.
-    Iyy_flange = Mesh.create_line_element_property_array(member_definitions, dm, dz, FlangeProperties, 3, 2)
+#     #Define moment of inertia of the bottom purlin flange.
+#     Iyy_flange = Mesh.create_line_element_property_array(member_definitions, dm, dz, FlangeProperties, 3, 2)
 
-    #Define x distance from purlin bottom flange centroid to the leftmost fiber.
-    c_x_flange_left = Mesh.create_line_element_property_array(member_definitions, dm, dz, FlangeProperties, 3, 2) #check this...
+#     #Define x distance from purlin bottom flange centroid to the leftmost fiber.
+#     c_x_flange_left = Mesh.create_line_element_property_array(member_definitions, dm, dz, FlangeProperties, 3, 2) #check this...
 
-    #Define x distance from purlin bottom flange centroid to the rightmost fiber.
-    c_x_flange_right = Mesh.create_line_element_property_array(member_definitions, dm, dz, FlangeProperties, 3, 2) #check this...
+#     #Define x distance from purlin bottom flange centroid to the rightmost fiber.
+#     c_x_flange_right = Mesh.create_line_element_property_array(member_definitions, dm, dz, FlangeProperties, 3, 2) #check this...
 
-    #Calculate the purlin section modulus for the top fiber about the x-x ais.
-    Sxx_top = Ixx ./ c_y_top
+#     #Calculate the purlin section modulus for the top fiber about the x-x ais.
+#     Sxx_top = Ixx ./ c_y_top
 
-    #Calculate the purlin section modulus for the bottom fiber about the x-x axis.
-    Sxx_bottom = Ixx ./ c_y_bottom
+#     #Calculate the purlin section modulus for the bottom fiber about the x-x axis.
+#     Sxx_bottom = Ixx ./ c_y_bottom
 
-    #Calculate the purlin section modulus for the leftmost fiber about the y-y ais.
-    Syy_left = Iyy ./ c_y_left
+#     #Calculate the purlin section modulus for the leftmost fiber about the y-y ais.
+#     Syy_left = Iyy ./ c_y_left
 
-    #Calculate the purlin section modulus for the rightmost fiber about the y-y axis.
-    Syy_right = Iyy ./ c_y_right
+#     #Calculate the purlin section modulus for the rightmost fiber about the y-y axis.
+#     Syy_right = Iyy ./ c_y_right
 
-    #Calculate the bottom purlin flange section modulus for the leftmost fiber about the y-y ais.
-    Syy_flange_left = Iyy_flange ./ c_x_flange_left
+#     #Calculate the bottom purlin flange section modulus for the leftmost fiber about the y-y ais.
+#     Syy_flange_left = Iyy_flange ./ c_x_flange_left
 
-    #Calculate the bottom purlin flange section modulus for the rightmost fiber about the y-y axis.
-    Syy_flange_right = Iyy_flange ./ c_x_flange_right
-
-
-    #FIRST YIELD MOMENTS
-
-    #Define purlin first yield moment about x-x centroidal axis.
-    My_xx_top = Fy .* Sxx_top
-    My_xx_bottom = Fy .* Sxx_bottom
-    My_xx = min.([My_xx_top  My_xx_bottom])
-
-    #Define purlin first yield moment about y-y centroidal axis.
-    My_yy_left = Fy .* Syy_left
-    My_yy_right = Fy .* Syy_right
-    My_yy = min.([My_yy_left  My_yy_right])
-
-    #Define purlin bottom flange first yield moment about y-y centroidal axis.
-    My_yy_flange_left = Fy .* Syy_flange_left
-    My_yy_flange_right = Fy .* Syy_flange_right
-    My_yy_flange = min.([My_yy_flange_left  My_yy_flange_right])
+#     #Calculate the bottom purlin flange section modulus for the rightmost fiber about the y-y axis.
+#     Syy_flange_right = Iyy_flange ./ c_x_flange_right
 
 
-    #CRITICAL ELASTIC LOCAL BUCKLING 
+#     #FIRST YIELD MOMENTS
 
-    #Define the purlin critical elastic local buckling moment about the centroidal x-x axis.
-    Mcrℓ_xx = Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 7)
+#     #Define purlin first yield moment about x-x centroidal axis.
+#     My_xx_top = Fy .* Sxx_top
+#     My_xx_bottom = Fy .* Sxx_bottom
+#     My_xx = min.([My_xx_top  My_xx_bottom])
 
-    #Define the purlin critical elastic local buckling moment about the centroidal y-y axis.
-    Mcrℓ_yy = Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 8)
+#     #Define purlin first yield moment about y-y centroidal axis.
+#     My_yy_left = Fy .* Syy_left
+#     My_yy_right = Fy .* Syy_right
+#     My_yy = min.([My_yy_left  My_yy_right])
 
-    #Define the purlin critical elastic local buckling moment from torsion.
-    Bcrℓ = Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 9)
+#     #Define purlin bottom flange first yield moment about y-y centroidal axis.
+#     My_yy_flange_left = Fy .* Syy_flange_left
+#     My_yy_flange_right = Fy .* Syy_flange_right
+#     My_yy_flange = min.([My_yy_flange_left  My_yy_flange_right])
 
-    #Define the purlin bottom flange elastic local buckling moment about the centroidal y-y axis.
-    Mcrℓ_yy_flange = Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 9)  #check this!!!
+
+#     #CRITICAL ELASTIC LOCAL BUCKLING 
+
+#     #Define the purlin critical elastic local buckling moment about the centroidal x-x axis.
+#     Mcrℓ_xx = Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 7)
+
+#     #Define the purlin critical elastic local buckling moment about the centroidal y-y axis.
+#     Mcrℓ_yy = Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 8)
+
+#     #Define the purlin critical elastic local buckling moment from torsion.
+#     Bcrℓ = Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 9)
+
+#     #Define the purlin bottom flange elastic local buckling moment about the centroidal y-y axis.
+#     Mcrℓ_yy_flange = Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 9)  #check this!!!
 
 
-    #CRITICAL ELASTIC DISTORTIONAL BUCKLING 
+#     #CRITICAL ELASTIC DISTORTIONAL BUCKLING 
 
-    #Define the cross-section type, Cee or Zee.
-    CorZ = trunc.(Int, Mesh.create_line_element_property_array(member_definitions, dm, dz, crossSectionDimensions, 3, 6))
+#     #Define the cross-section type, Cee or Zee.
+#     CorZ = trunc.(Int, Mesh.create_line_element_property_array(member_definitions, dm, dz, crossSectionDimensions, 3, 6))
  
-    #Define the stress gradient at the top of the web for bending about the x-x cetroidal axis.
-    f1 = Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 9)  #check this!!!
+#     #Define the stress gradient at the top of the web for bending about the x-x cetroidal axis.
+#     f1 = Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 9)  #check this!!!
 
-    #Define the stress gradient at the bottom of the web for bending about the x-x cetroidal axis.
-    f2= Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 9)  #check this!!!
+#     #Define the stress gradient at the bottom of the web for bending about the x-x cetroidal axis.
+#     f2= Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 9)  #check this!!!
 
-    #Define the spacing between discrete distortional buckling restraints.
-    Lm = Mesh.create_line_element_property_array(member_definitions, dm, dz, bracingProperties, 6, 3)
+#     #Define the spacing between discrete distortional buckling restraints.
+#     Lm = Mesh.create_line_element_property_array(member_definitions, dm, dz, bracingProperties, 6, 3)
 
-    #Define moment gradient along the purlin line.  Use this to calculate Mcrd.
-    M1=1.0*ones(length(numberOfNodes))  #need to figure this out...
-    M2=1.0*ones(length(numberOfNodes))  #need to figure this out...
+#     #Define moment gradient along the purlin line.  Use this to calculate Mcrd.
+#     M1=1.0*ones(length(numberOfNodes))  #need to figure this out...
+#     M2=1.0*ones(length(numberOfNodes))  #need to figure this out...
   
-    #Define the rotational stiffness provided by sheathing and connections to the purlin top flange.  Use this to calculate Mcrd.
-    kϕ_dist=0.0*zeros(length(numberOfNodes))  #need to figure this out...
+#     #Define the rotational stiffness provided by sheathing and connections to the purlin top flange.  Use this to calculate Mcrd.
+#     kϕ_dist=0.0*zeros(length(numberOfNodes))  #need to figure this out...
 
-    #Define the section modulus at the extreme compression fiber.  Use this to calculate Mcrd.  
-    Sf_dist = Sxx   #need to figure this out...
+#     #Define the section modulus at the extreme compression fiber.  Use this to calculate Mcrd.  
+#     Sf_dist = Sxx   #need to figure this out...
 
-    #Calculate Mcrd along the purlin line.
-    Mcrd=AISIS10016.app23331.(CorZ, t, ho, b, d, θc, E, μ, G, f1, f2, M1, M2, curvatureSign, Lm, kϕ, Sf)
+#     #Calculate Mcrd along the purlin line.
+#     Mcrd=AISIS10016.app23331.(CorZ, t, ho, b, d, θc, E, μ, G, f1, f2, M1, M2, curvatureSign, Lm, kϕ, Sf)
 
-    #CRITICAL ELASTIC SHEAR BUCKLING STRESS
+#     #CRITICAL ELASTIC SHEAR BUCKLING STRESS
 
-    #Define the shear stiffener spacing along the purlin line.
-    a = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, bracingProperties, 6, 4)
+#     #Define the shear stiffener spacing along the purlin line.
+#     a = Mesh.create_line_element_property_array(memberDefinitions, dm, dz, bracingProperties, 6, 4)
 
-    #Calculate the plate buckling coefficient for pure shear.
-    kv  = AISIS10016.g233.(a, h)
+#     #Calculate the plate buckling coefficient for pure shear.
+#     kv  = AISIS10016.g233.(a, h)
 
-    #Caclulate the critical elastic shear buckling stress for the purlin web. 
-    Fcrv = AISIS10016.g232.(E, μ, kv, h, t)
-
-
-    #GLOBAL BUCKLING NOMINAL FLEXURAL STRENGTH
-
-    #Define purlin global buckling nominal flexural strength about the x-x centroidal axis. Set this equal to the first yield moment because global buckling deformations will be taken into account in the second order analysis.
-    Mne_xx = My_xx
-
-    #Define purlin global buckling nominal flexural strength about the y-y centroidal axis.
-    Mne_yy = My_yy
-
-    #Define purlin bottom flange global buckling nominal flexural strength about the y-y centroidal axis.
-    Mne_flange_yy = My_flange_yy
+#     #Caclulate the critical elastic shear buckling stress for the purlin web. 
+#     Fcrv = AISIS10016.g232.(E, μ, kv, h, t)
 
 
-    purlin_line = PurlinLineProperties(Fy, E, μ, G, ho, h, t, b_top, b_bottom, d, θc, Ixx, Iyy, c_y_top, c_y_bottom, c_x_left, c_x_right, Cw, Wn, Iyy_flange, c_x_flange_left, c_x_flange_right, Sxx_top, Sxx_bottom, Syy_left, Syy_right, Syy_flange_left, Syy_flange_right, My_xx_top, My_xx_bottom, My_xx, My_yy_left, My_yy_right, My_yy, My_yy_flange_left, My_yy_flange_right, My_yy_flange, Mcrℓ_xx, Mcrℓ_yy, Bcrℓ, Mcrℓ_yy_flange, CorZ, f1, f2, Lm, M1, M2, kϕ_dist, Sf_dist, Mcrd, a, kv, Fcrv, Mne_xx, Mne_yy, Mne_flange_yy)
+#     #GLOBAL BUCKLING NOMINAL FLEXURAL STRENGTH
 
-    return purlin_line
+#     #Define purlin global buckling nominal flexural strength about the x-x centroidal axis. Set this equal to the first yield moment because global buckling deformations will be taken into account in the second order analysis.
+#     Mne_xx = My_xx
 
-end
+#     #Define purlin global buckling nominal flexural strength about the y-y centroidal axis.
+#     Mne_yy = My_yy
+
+#     #Define purlin bottom flange global buckling nominal flexural strength about the y-y centroidal axis.
+#     Mne_flange_yy = My_flange_yy
+
+
+#     purlin_line = PurlinLineProperties(Fy, E, μ, G, ho, h, t, b_top, b_bottom, d, θc, Ixx, Iyy, c_y_top, c_y_bottom, c_x_left, c_x_right, Cw, Wn, Iyy_flange, c_x_flange_left, c_x_flange_right, Sxx_top, Sxx_bottom, Syy_left, Syy_right, Syy_flange_left, Syy_flange_right, My_xx_top, My_xx_bottom, My_xx, My_yy_left, My_yy_right, My_yy, My_yy_flange_left, My_yy_flange_right, My_yy_flange, Mcrℓ_xx, Mcrℓ_yy, Bcrℓ, Mcrℓ_yy_flange, CorZ, f1, f2, Lm, M1, M2, kϕ_dist, Sf_dist, Mcrd, a, kv, Fcrv, Mne_xx, Mne_yy, Mne_flange_yy)
+
+#     return purlin_line
+
+# end
      
  
 

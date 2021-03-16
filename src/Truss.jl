@@ -156,11 +156,20 @@ function define_truss_element_orientations(members, node_geometry)
     # Initialize the orientation array for all truss elements in a structural system.
     θ = zeros(Float64, length(members))
 
+    #Define reference vector from which the orientation angle is calculated.  
+    horizon_vector = [1.0, 0.0]
+
     # Loop over the truss elements.
     for i=1:length(members)
 
-       #Calculate the orientation angle.
-       θ[i] = atan((node_geometry[members[i][2],2] - node_geometry[members[i][1],2]) /(node_geometry[members[i][2],1] - node_geometry[members[i][1],1]))
+        point_i = node_geometry[members[i][1], :]
+        point_j = node_geometry[members[i][2], :]
+
+        element_vector = point_j - point_i
+
+        #Calculate the orientation angle.
+        #https://en.wikipedia.org/wiki/Atan2
+        θ[i] = atan(element_vector[2], element_vector[1])
     
     end
 
@@ -302,7 +311,7 @@ function define(members, section_properties, material_properties, node_geometry,
     truss.material_properties = material_properties
     truss.node_geometry = node_geometry
     truss.supports = supports
-    truss.external_forces = external_forces
+    truss.external_forces = deepcopy(external_forces)
 
     #Define the number of degrees of freedom per node.
     truss.num_dof_per_node = 2
