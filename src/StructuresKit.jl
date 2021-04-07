@@ -12,6 +12,10 @@ export AISIS10024
 include("AISIS10024.jl")
 using .AISIS10024
 
+export CUFSM
+include("CUFSM.jl")
+using .CUFSM
+
 export Eurocode1993
 include("Eurocode1993.jl")
 using .Eurocode1993

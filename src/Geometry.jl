@@ -2,7 +2,7 @@ module Geometry
 
 export rotation_matrix, vector_components, line_coordinates, circular_curve, triangle_area, triangle_centroid
 
-#counterclockwise, right hand rule  
+#counterclockwise, right hand rule
 function rotation_matrix(θ)
 
     R = [cos(θ) -sin(θ)
@@ -15,9 +15,9 @@ function vector_components(ΔL, θ)
     num_lines = length(ΔL)
 
     Δxy = zeros(Float64, (num_lines, 2))
-    
+
     for i = 1:num_lines
-        
+
         Δxy[i,:] = [ΔL[i] * cos(deg2rad(θ[i]))  ΔL[i] * sin(deg2rad(θ[i]))]
 
     end
@@ -28,7 +28,7 @@ end
 
 
 
-function line_coordinates(Δxy)
+function line_coordinates(Δxy, closed_or_open)
 
     xcoords = []
     ycoords = []
@@ -38,13 +38,18 @@ function line_coordinates(Δxy)
     for i = 1:num_lines
 
         if i==1
-            xcoords = [0.0, Δxy[i,1]]    
+            xcoords = [0.0, Δxy[i,1]]
             ycoords = [0.0, Δxy[i,2]]
         else
-            xcoords = [xcoords; xcoords[end] .+ Δxy[i,1]]
-            ycoords = [ycoords; ycoords[end] .+ Δxy[i,2]]
+
+            if ((closed_or_open == 0) & (i == num_lines))
+                #avoid last node for closed section
+            else
+                xcoords = [xcoords; xcoords[end] .+ Δxy[i,1]]
+                ycoords = [ycoords; ycoords[end] .+ Δxy[i,2]]
+            end
         end
-   
+
     end
 
     return xcoords, ycoords
@@ -57,10 +62,10 @@ function circular_curve(radius, interior_angle, xy_PI, PI_unit_normal, n)
     #https://www.cpp.edu/~hturner/ce220/circular_curves.pdf
 
     #interior angle
-    θ = deg2rad(interior_angle)  
+    θ = deg2rad(interior_angle)
 
     #angle over which the arc sweeps
-    Δ = π - θ 
+    Δ = π - θ
 
     #define orthogonal distance from curve to PI
     E = radius*(1/(cos(Δ/2))-1)
@@ -101,9 +106,9 @@ function circular_curve(radius, interior_angle, xy_PI, PI_unit_normal, n)
     #define unit radius vector going through BC
     #this is the unit vector normal to the tangent vector at BC
     radius_unit_vector_BC = [-BC_unit_tangent[2], BC_unit_tangent[1]]
-  
+
     #rotate unit radius vector
-    Δ_sweep = range(0.0, -Δ, length=n+1) 
+    Δ_sweep = range(0.0, -Δ, length=n+1)
     xy_curve = zeros(Float64, (n+1, 2))
     xy_curve[1,:] = xy_BC
     xy_curve[end,:] = xy_EC
