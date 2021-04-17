@@ -69,7 +69,10 @@ function cfs_pull_through_plate_stiffness(x, c, tw)
     filename = string(@__DIR__, "/assets/kp.csv")
 
     #Import the parameters and stiffness values.
-    data = CSV.read(filename, DataFrame, header=true)
+
+    data = CSV.File(filename)
+    data = DataFrame(x = Vector(data.x), c = Vector(data.c), tw = Vector(data.tw), kp=Vector(data.kp))
+    # data = CSV.read(filename, DataFrame, header=true)
 
     #Define the range of screw locations relative to an R-panel deck rib.
     x_range = sort(unique(data.x))

@@ -1586,8 +1586,8 @@ function mesh(xcoords, ycoords, mesh_size)
 
     #Define vertical tube segment at y=0.
 
-    xcoords = 0.0:dx[1]:Δxyc[1,1]
     ycoords = Tc[1]:dy[1]:(Δxyc[1,2] + Tc[1])
+	xcoords = zeros(Float64, length(ycoords))
 
     #Define top left corner.
 
