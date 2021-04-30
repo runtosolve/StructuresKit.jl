@@ -1,0 +1,13 @@
+support_condition,flange_condition,load_case,load_location,C,C_R,C_N,C_h,ASD,LRFD,LSD,limits
+Fastened to Support,Stiffened or Partially Stiffened Flanges,One-Flange Loading or Reaction,End,4,0.14,0.35,0.02,1.75,0.85,0.75,9
+Fastened to Support,Stiffened or Partially Stiffened Flanges,One-Flange Loading or Reaction,Interior,13,0.23,0.14,0.01,1.65,0.9,0.8,5.5
+Fastened to Support,Stiffened or Partially Stiffened Flanges,Two-Flange Loading or Reaction,End,9,0.05,0.16,0.052,1.75,0.85,0.75,12
+Fastened to Support,Stiffened or Partially Stiffened Flanges,Two-Flange Loading or Reaction,Interior,24,0.07,0.07,0.04,1.85,0.8,0.7,12
+Unfastened,Stiffened or Partially Stiffened Flanges,One-Flange Loading or Reaction,End,5,0.09,0.02,0.001,1.8,0.85,0.75,5
+Unfastened,Stiffened or Partially Stiffened Flanges,One-Flange Loading or Reaction,Interior,13,0.23,0.14,0.01,1.65,0.9,0.8,5
+Unfastened,Stiffened or Partially Stiffened Flanges,Two-Flange Loading or Reaction,End,13,0.32,0.05,0.04,1.65,0.9,0.8,3
+Unfastened,Stiffened or Partially Stiffened Flanges,Two-Flange Loading or Reaction,Interior,24,0.52,0.15,0.001,1.9,0.8,0.65,3
+Unfastened,Unstiffened Flanges,One-Flange Loading or Reaction,End,4,0.4,0.6,0.03,1.8,0.85,0.7,2
+Unfastened,Unstiffened Flanges,One-Flange Loading or Reaction,Interior,13,0.32,0.1,0.01,1.8,0.85,0.7,1
+Unfastened,Unstiffened Flanges,Two-Flange Loading or Reaction,End,2,0.11,0.37,0.01,2,0.75,0.65,1
+Unfastened,Unstiffened Flanges,Two-Flange Loading or Reaction,Interior,13,0.47,0.25,0.04,1.9,0.8,0.65,1

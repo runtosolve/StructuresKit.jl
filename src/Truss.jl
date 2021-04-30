@@ -1,8 +1,10 @@
 module Truss
 
 using LinearAlgebra
+using Plots
+using GraphRecipes
 
-export define, solve
+export define, solve, show
 
 
 """
@@ -446,6 +448,54 @@ function solve(truss)
     return truss
 
 end
+
+function show(truss_object, scale_x, scale_y)
+	
+	
+	δx = truss_object.u[1:2:end]
+	δy = truss_object.u[2:2:end]
+	
+	num_nodes = floor(Int, length(truss_object.u)/2)
+	
+	g = zeros(Int64, (num_nodes, num_nodes))
+	
+	start_nodes = [x[1] for x in truss_object.members]
+	end_nodes = [x[2] for x in truss_object.members]
+
+	for i = 1:num_nodes
+	
+		index = findall(x->x==i, start_nodes)
+	
+		g[i, end_nodes[index]] .= 1
+	
+	end
+	
+	graphplot(g,
+          x=truss_object.node_geometry[:,1], y=truss_object.node_geometry[:,2],
+          nodeshape=:circle, nodesize=2,
+          axis_buffer=0.01,
+          curves=false,
+          color=:red,
+          linewidth=0.5,
+	      arrowlengthfrac=0)
+	
+	graphplot!(g,
+          x=truss_object.node_geometry[:,1] .+ δx .* scale_x, y=truss_object.node_geometry[:,2] .+ δy .* 	scale_y,
+          nodeshape=:circle, nodesize=2,
+          axis_buffer=0.01,
+          curves=false,
+          color=:black,
+          linewidth=2,
+	      arrowlengthfrac=0)
+	
+	quiver!(truss_object.node_geometry[:,1],truss_object.node_geometry[:,2],quiver=(truss_object.external_forces[1:2:end]./10, truss_object.external_forces[2:2:end]./10))
+	
+	return current()
+	
+end
+
+
+
 
 end #module
 

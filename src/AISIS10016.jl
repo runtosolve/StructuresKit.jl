@@ -1,5 +1,8 @@
 module AISIS10016
 
+using CSV, DataFrames
+
+export table_g53
 
 function e2(Fcre, Fy, Ag, ASDorLRFD)
 
@@ -134,6 +137,33 @@ function g233(a, h)
 end
 
 
+
+function g51(t, h, Fy, θ, C, C_R, R, C_N, N, C_h, ϕ_w, Ω_w, ASDorLRFD)
+
+    Pn = C * t^2 * Fy * sin(deg2rad(θ)) * (1-C_R*sqrt(R/t)) * (1+C_N*sqrt(N/t)) * (1-C_h*sqrt(h/t))
+
+    if ASDorLRFD == 0
+        ePn = Pn / Ω_w
+    elseif ASDorLRFD == 1
+        ePn = ϕ_w * Pn
+    else   #nominal
+        ePn = Pn
+    end
+
+    return Pn, ePn
+
+end
+
+function table_g53()
+
+    filename = string(@__DIR__, "/assets/AISI_S100_16_Table_G5_3.csv")
+    table = DataFrame(CSV.File(filename))
+
+    return table
+
+end
+
+
 function h21(Mbar, Vbar, Maℓo, Va)
 
     Interaction=sqrt.((Mbar./Maℓo).^2 .+ (Vbar./Va).^2)
@@ -159,6 +189,8 @@ function table23131(CorZ,t,b,d,θ)
     Af=(b+d)*t
     Jf=1/3*b*t^3+1/3*d*t^3
     Cwf=0.0
+
+    θ = deg2rad(θ)  #convert degrees to radians
 
     if CorZ==0
 

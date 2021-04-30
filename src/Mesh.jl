@@ -67,7 +67,7 @@ function assign_line_element_nodal_properties(member_definitions)
 
          L = member_definitions[i][1]
          dL = member_definitions[i][2]
-         numSegments = floor(Int64, L/dL)
+         num_segments = floor(Int64, L/dL)
          num_nodes = num_segments+1   
 
          if i == 1

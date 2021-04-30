@@ -2,8 +2,809 @@ module CUFSM
 
 using SparseArrays
 using LinearAlgebra
+using Statistics
 
-export strip, stresgen
+export strip, stresgen, data, cutwp_prop2, templatecalc, template_out_to_in, SectionProperties
+
+struct data
+
+    prop::Matrix{Float64}
+    node::Matrix{Float64}
+    elem::Matrix{Float64}
+    lengths::Array{Float64}
+    springs::Matrix{Float64}
+    constraints::Int64
+    neigs::Int64
+    curve::Vector{Matrix{Float64}}
+    shapes::Vector{Matrix{Float64}}
+
+end
+
+struct SectionProperties
+
+    node_geometry::Array{Float64, 2}
+    element_info::Array{Float64, 2}
+    A::Float64
+    xc::Float64
+    yc::Float64
+    Ixx::Float64
+    Iyy::Float64
+    Ixy::Float64
+    θ::Float64
+    I1::Float64
+    I2::Float64
+    J::Float64
+    xs::Float64
+    ys::Float64
+    Cw::Float64
+    B1::Float64
+    B2::Float64
+    wn::Array{Float64, 1}
+
+end
+
+
+
+function template_out_to_in(H,B1,D1,q1,B2,D2,q2,ri1,ri2,ri3,ri4,t)
+
+	#Translated from CUFSM v5.01 Matlab download, thanks Ben.
+
+	#Calculate centerline dimensions of Cees and Zees from outside dimensions
+	#and inner radii.
+
+	# BWS 2015
+	# reference AISI Design Manual for the lovely corner radius calcs.
+	# For template calc, convert outer dimensons and inside radii to centerline
+	# dimensiosn throughout
+	# convert the inner radii to centerline if nonzero
+	if ri1==0
+	    r1=0
+	else
+	    r1=ri1+t/2
+	end
+
+	if ri2==0
+	    r2=0
+	else
+	    r2=ri2+t/2
+	end
+
+	if ri3==0
+	    r3=0
+	else
+	    r3=ri3+t/2
+	end
+
+	if ri4==0
+	    r4=0
+	else
+	    r4=ri4+t/2
+	end
+
+	h=H-t/2-r1-r3-t/2
+
+	if D1==0
+	    b1=B1-r1-t/2
+	    d1=0
+	else
+	    b1=B1-r1-t/2-(r2+t/2)*tan(q1/2)
+	    d1=(D1-(r2+t/2)*tan(q1/2))
+	end
+
+	if D2==0
+	    b2=B2-r3-t/2
+	    d2=0
+	else
+	    b2=B2-r3-t/2-(r4+t/2)*tan(q2/2)
+	    d2=(D2-(r4+t/2)*tan(q2/2))
+	end
+
+	return h, b1, d1, q1, b2, d2, q2, r1, r2, r3, r4, t
+
+end
+
+
+function templatecalc(CorZ,h,b1,b2,d1,d2,r1,r2,r3,r4,q1,q2,t,nh,nb1,nb2,nd1,nd2,nr1,nr2,nr3,nr4,kipin,center)
+	#Translated from CUFSM v5.01 Matlab download, thanks Ben.
+
+	#BWS
+	#August 23, 2000
+	#2015 modification to allow for d1=d2=0 and creation of a track with same template
+	#2015 addition to allow outer dimensions and inner radii to be used
+	#2015 addition to control element discretization
+
+	#CorZ=determines sign conventions for flange 1=C 2=Z
+	if CorZ==2
+		cz=-1;
+	else
+		cz=1;
+	end
+	#channel template
+
+	#convert angles to radians
+	q1=q1*π/180;
+	q2=q2*π/180;
+	#
+
+	#if center is not 1 then outer dimensions and inner radii came in and these
+	#need to be corrected to all centerline for the use of this template
+	if center==1
+	else
+	    #label all the outer dimensions and inner radii
+	    H=h;
+	    B1=b1;
+	    D1=d1;
+	    ri1=r1;
+	    ri2=r2;
+	    B2=b2;
+	    D2=d2;
+	    ri3=r3;
+	    ri4=r4;
+	    h,b1,d1,q1,b2,d2,q2,r1,r2,r3,r4,t = CUFSM_CZcenterline(H,B1,D1,q1,B2,D2,q2,ri1,ri2,ri3,ri4,t);
+	end
+
+
+	#rest of the dimensions are "flat dimensions" and acceptable for modeling
+	if (r1==0.0) & (r2==0.0) & (r3==0.0) & (r4==0.0)
+	    if (d1==0.0) & (d2==0.0)
+	        #track or unlipped Z with sharp corners
+	        geom=[1 b1            0
+	            2 0             0
+	            3 0             h
+	            4 cz*(b2)       h];
+	        n=[nb1 nh nb2];
+	    else
+	        #lipped C or Z with sharp corners
+	        geom=[1 b1+d1*cos(q1) d1*sin(q1)
+	            2 b1            0
+	            3 0             0
+	            4 0             h
+	            5 cz*(b2)       h
+	            6 cz*(b2+d2*cos(q2)) h-d2*sin(q2)];
+	        n=[nd1 nb1 nh nb2 nd2];
+	    end
+	else
+	    if (d1==0.0) & (d2==0.0)
+	        geom=[1 r1+b1                            0
+	            2 r1                               0
+	            3 0                                r1
+	            4 0                                r1+h
+	            5 cz*r3                               r1+h+r3
+	            6 cz*(r3+b2)                            r1+h+r3];
+	        n=[nb1 nr1 nh nr3 nb2];
+	    else
+	        geom=[1 r1+b1+r2*cos(π/2-q1)+d1*cos(q1) r2-r2*sin(π/2-q1)+d1*sin(q1)
+	            2 r1+b1+r2*cos(π/2-q1)            r2-r2*sin(π/2-q1)
+	            3 r1+b1                            0
+	            4 r1                               0
+	            5 0                                r1
+	            6 0                                r1+h
+	            7 cz*r3                               r1+h+r3
+	            8 cz*(r3+b2)                            r1+h+r3
+	            9 cz*(r3+b2+r4*cos(π/2-q2))            r1+h+r3-r4+r4*sin(π/2-q2)
+	            10 cz*(r3+b2+r4*cos(π/2-q2)+d2*cos(q2)) r1+h+r3-r4+r4*sin(π/2-q2)-d2*sin(q2)];
+	        n=[nd1 nr2 nb1 nr1 nh nr3 nb2 nr4 nd2];
+	    end
+	end
+	#number of elements between the geom coordinates
+	node=zeros(sum(n)+1,8)
+
+	for i=1:size(geom)[1]-1
+
+	    start=geom[i,2:3];
+	    stop=geom[i+1,2:3];
+	    if i==1
+	        nstart=1;
+	    else
+	        nstart=sum(n[1:i-1])+1;
+	    end
+
+		node[nstart,:]=[nstart; geom[i,2:3]; 1; 1; 1; 1; 1.0];
+
+	    if (r1==0.0) & (r2==0.0) & (r3==0.0) & (r4==0.0)
+	        #------------------------
+	        #SHARP CORNER MODEL
+	        for j=1:n[i]-1
+	            node[nstart+j,:]=[nstart+j; start+(stop-start)*j/n[i]; 1; 1; 1; 1; 1.0];
+	        end
+	        #------------------------
+	    else
+	        #ROUND CORNER MODEL
+	        if (d1==0.0) & (d2==0.0) #track or unlipped Z geometry
+	            #------------------------
+	            #UNLIPPED C OR Z SECTION
+	            if maximum(i.==[1 3 5]) #use linear interpolation
+	                for j=1:n[i]-1
+	                    node[nstart+j,:]=[nstart+j; start+(stop-start)*j/n[i]; 1; 1; 1; 1; 1.0];
+	                end
+	            else #we are in a corner and must be fancier
+	                for j=1:n[i]-1
+	                    if i==2
+	                        r=r1;
+							xc=r1;
+							zc=r1;
+							qstart=π/2;
+							dq=π/2*j/n[i];
+	                    end
+	                    if i==4
+	                        r=r3;
+							xc=cz*r3;
+							zc=r1+h;
+							qstart=(1==cz)*π;
+							dq=cz*π/2*j/n[i];
+	                    end
+	                    x2=xc+r*cos(qstart+dq);
+	                    z2=zc-r*sin(qstart+dq); #note sign on 2nd term is negative due to z sign convention (down positive)
+	                    node[nstart+j,:]=[nstart+j; x2; z2; 1; 1; 1; 1; 1.0];
+	                end
+	            end
+	            #------------------------
+	        else
+	            #LIPPED C OR Z SECTION
+	            #------------------------
+	            if maximum(i.==[1 3 5 7 9]) #use linear interpolation
+	                for j=1:n[i]-1
+	                    node[nstart+j,:]=[nstart+j; start+(stop-start)*j/n[i]; 1; 1; 1; 1; 1.0];
+	                end
+	            else #we are in a corner and must be fancier
+	                for j=1:n[i]-1
+	                    if i==2
+	                        r=r2;
+							xc=r1+b1;
+							zc=r2;
+							qstart=π/2-q1;
+							dq=q1*j/n[i];
+	                    end
+	                    if i==4
+	                        r=r1;
+							xc=r1;
+							zc=r1;
+							qstart=π/2;
+							dq=π/2*j/n[i];
+	                    end
+	                    if i==6
+	                        r=r3;
+							xc=cz*r3;
+							zc=r1+h;
+							qstart=(1==cz)*π;
+							dq=cz*π/2*j/n[i];
+	                    end
+	                    if i==8
+	                        r=r4;
+							xc=cz*(r3+b2);
+							zc=r1+h+r3-r4;
+							qstart=3*π/2;
+							dq=cz*q2*j/n[i];
+	                    end
+	                    x2=xc+r*cos(qstart+dq);
+	                    z2=zc-r*sin(qstart+dq); #note sign on 2nd term is negative due to z sign convention (down positive)
+	                    node[nstart+j,:]=[nstart+j; x2; z2; 1; 1; 1; 1; 1.0];
+	                end
+	            end
+	            #------------------------
+	        end
+	    end
+	end
+
+
+
+	#GET THE LAST NODE ASSIGNED
+	if (r1==0.0) & (r2==0.0) & (r3==0.0) & (r4==0.0)
+	    if (d1==0.0) & (d2==0.0)
+	        i=4;
+	        node[sum(n[1:i-1])+1,:]=[sum(n[1:i-1])+1; geom[i,2:3]; 1; 1; 1; 1; 1.0];
+	    else
+	        i=6;
+	        node[sum(n[1:i-1])+1,:]=[sum(n[1:i-1])+1; geom[i,2:3]; 1; 1; 1; 1; 1.0];
+	    end
+	else
+	    if (d1==0.0) & (d2==0.0)
+	        i=6;
+	        node[sum(n[1:i-1])+1,:]=[sum(n[1:i-1])+1; geom[i,2:3]; 1; 1; 1; 1; 1.0];
+	    else
+	        i=10;
+	        node[sum(n[1:i-1])+1,:]=[sum(n[1:i-1])+1; geom[i,2:3]; 1; 1; 1; 1; 1.0];
+	    end
+	end
+
+	elem=zeros(sum(n),5)
+	for i=1:size(node)[1]-1
+   		elem[i,:]=[i i i+1 t 100];
+	end
+
+	#set some default properties
+	if kipin==1
+		prop=[100 29500 29500 0.3 0.3 29500/(2*(1+0.3))];
+	else
+		prop=[100 203000 203000 0.3 0.3 203000/(2*(1+0.3))];
+	end
+
+	#set some default lengths
+	big=maximum([h;b1;b2;d1;d2]);
+	lengths=exp10.(range(log10(big/10), stop=log10(big*1000), length=50))
+
+	springs=[0]
+	constraints=[0]
+
+	return prop,node,elem,lengths,springs,constraints,geom,cz
+
+end
+
+
+function cutwp_prop2(coord,ends)
+
+#Translated from Matlab to Julia on October 5, 2020.
+
+#### Matlab notes below.
+
+#Function modified for use in CUFSM by Ben Schafer in 2004 with permission
+#of Sarawit. removed elastic buckling calcs & kept only section
+#properties
+#
+#August 2005: additional modifications; program only handles
+#singly-branched open sections; | single cell closed sections; arbitrary
+#section designation added for other types.
+#
+#December 2006 bug fixes to B1 B2
+#
+#December 2015 extended to not crash on disconnected & arbitrary sections
+#
+#  Compute cross section properties
+#----------------------------------------------------------------------------
+#  Written by:
+#       Andrew T. Sarawit
+#       last revised:   Wed 10/25/01
+#
+#  Function purpose:
+#       This function computes the cross section properties: area; centroid;
+#       moment of inertia; torsional constant; shear center; warping constant;
+#       B1; B2; elastic critical buckling load & the deformed buckling shape
+#
+#  Dictionary of Variables
+#     Input Information:
+#       coord[i,1:2]   .==  node i's coordinates
+#                            coord[i,1] = X coordinate
+#                            coord[i,2] = Y coordinate
+#       ends[i,1:2]    .==  subelement i's nodal information
+#                            ends[i,1] = start node #
+#                            ends[i,2] = finish node #
+#                            ends[i,3] = element's thickness
+#       KL1            .==  effective unbraced length for bending about the 1-axis()
+#       KL2            .==  effective unbraced length for bending about the 2-axis()
+#       KL3            .==  effective unbraced length for twisting about the 3-axis()
+#       force          .==  type of force applied
+#                      .== "Pe"  : elastic critical axial force
+#                      .== "Me1" : elastic critical moment about the 1-axis()
+#                      .== "Me2" : elastic critical moment about the 2-axis()
+#       exy[1:2]     .==  Pe eccentricities coordinates
+#                            exy[1] = ex
+#                            exy[2] = ey
+#  Output Information:
+#       A              .==  cross section area()
+#       xc             .==  X coordinate of the centroid from orgin
+#       yc             .==  Y coordinate of the centroid from origin
+#       Ix             .==  moment of inertia about centroid X axes()
+#       Iy             .==  moment of inertia about centroid Y axes()
+#       Ixy            .==  product of inertia about centroid
+#       Iz             .==  polar moment of inertia about centroid
+#       theta          .==  rotation angle for the principal axes()
+#       I1             .==  principal moment of inertia about centroid 1 axes()
+#       I2             .==  principal moment of inertia about centroid 2 axes()
+#       J              .==  torsional constant
+#       xs             .==  X coordinate of the shear center from origin
+#       ys             .==  Y coordinate of the shear center from origin
+#       Cw             .==  warping constant
+#       B1             .==  int[y*(x^2+y^2),s,0,L]   *BWS, x,y=prin. crd.
+#       B2             .==  int[x*(x^2+y^2),s,0,L]
+#                          where: x = x1+s/L*(x2-x1)
+#                                 y = y1+s/L*(y2-y1)
+#                                 L = lenght of the element
+#       Pe[i]          .==  buckling mode i's elastic critical buckling load()
+#       dcoord         .==  node i's coordinates of the deformed buckling shape
+#                            coord[i,1,mode] = X coordinate
+#                            coord[i,2,mode] = Y coordinate
+#                          where: mode = buckling mode number
+#
+#  Note:
+#     J;xs;ys;Cw;B1;B2;Pe;dcoord is not computed for close-section
+#
+#----------------------------------------------------------------------------
+#
+# find nele  .== total number of elements
+#      nnode .== total number of nodes
+#      j     .== total number of 2 element joints
+
+
+    nele = size(ends,1);
+    node = ends[:,1:2]; node = node[:]
+    nnode = 0
+    j = 0
+
+    while isempty(node) == false
+        i = findall(x-> x==node[1], node)
+        deleteat!(node, i)
+        # node[i] = []
+        if size(i,1)==2
+            j = j+1
+        end
+        nnode = nnode+1
+    end
+
+    # classify the section type()
+    #This section modified in April 2006 by BWS to create an "arbitrary" category
+    if j .== nele
+        section = "close"; #single cell()
+    elseif j .== nele-1
+        section = "open";
+    else
+        section = "arbitrary"; #arbitrary section unidentified
+            #in the future it would be good to handle multiple cross-sections in
+            #one model; etc.; for now the code will bomb if more than a single()
+            #section is used - due to inability to calculate section properties.
+            #2015 decided to treat the secton as a fully composite section &
+    end
+
+
+    # if the section is close re-order the element
+    if section == "close"
+        xnele = (nele-1)
+        for i = 1:xnele
+            en = deepcopy(ends); en[i,2] = 0
+            index = findall(ends[i,2] .== en[:,1:2])  #update this for Julia, need to deal with CartesianIndex
+            m=index[1][1]
+            n=index[1][2]
+            if n==1
+                ends[i+1,:] = en[m,:]
+                ends[m,:] = en[i+1,:]
+            elseif n == 2
+                ends[i+1,:] = en[m,[2 1 3]]
+                ends[m,:] = en[i+1,[2 1 3]]
+            end
+        end
+    end
+
+    t = zeros(Float64, nele)
+    xm = zeros(Float64, nele)
+    ym = zeros(Float64, nele)
+    xd = zeros(Float64, nele)
+    yd = zeros(Float64, nele)
+    L = zeros(Float64, nele)
+
+    # find the element properties
+    for i = 1:nele
+        sn = ends[i,1]; fn = ends[i,2];
+
+        sn = Int(sn)
+        fn = Int(fn)
+
+        # thickness of the element
+        t[i] = ends[i,3]
+        # compute the coordinate of the mid point of the element
+        xm[i] = mean(coord[[sn fn],1])
+        ym[i] = mean(coord[[sn fn],2])
+        # compute the dimension of the element
+        xd[i] = diff(vec(coord[[sn fn],1]))[1]
+        yd[i] = diff(vec(coord[[sn fn],2]))[1]
+        # compute the length of the element
+        L[i] = norm([xd[i] yd[i]])
+    end
+
+    # compute the cross section area()
+    A = sum(L.*t)
+    # compute the centroid
+    xc = sum(L.*t.*xm)/A
+    yc = sum(L.*t.*ym)/A
+
+    if abs(xc/sqrt(A)) .< 1e-12
+        xc = 0
+    end
+    if abs(yc/sqrt(A)) .< 1e-12
+        yc = 0
+    end
+
+    # compute the moment of inertia
+    Ix = sum((yd.^2/12 .+(ym .-yc).^2).*L.*t)
+    Iy = sum((xd.^2/12 .+(xm .-xc).^2).*L.*t)
+    Ixy = sum((xd.*yd/12 .+(xm .-xc).*(ym .-yc)).*L.*t)
+
+    if abs(Ixy/A^2) .< 1e-12
+        Ixy = 0
+    end
+
+    # compute the rotation angle for the principal axes()
+    theta = angle(Ix-Iy-2*Ixy*1im)/2
+
+    coord12 = zeros(Float64, size(coord))
+
+    # transfer the section coordinates to the centroid principal coordinates
+    coord12[:,1] = coord[:,1] .-xc
+    coord12[:,2] = coord[:,2] .-yc
+    coord12 = [cos(theta) sin(theta); -sin(theta) cos(theta)]*transpose(coord12)
+    coord12 = transpose(coord12)
+
+    # find the element properties
+    for i = 1:nele
+        sn = ends[i,1]
+        fn = ends[i,2]
+
+        sn = Int(sn)
+        fn = Int(fn)
+
+        # compute the coordinate of the mid point of the element
+        xm[i] = mean(coord12[[sn fn],1])
+        ym[i] = mean(coord12[[sn fn],2])
+        # compute the dimension of the element
+        xd[i] = diff(vec(coord12[[sn fn],1]))[1]
+        yd[i] = diff(vec(coord12[[sn fn],2]))[1]
+    end
+
+    # compute the principal moment of inertia
+    I1 = sum((yd.^2/12+ym.^2).*L.*t)
+    I2 = sum((xd.^2/12+xm.^2).*L.*t)
+
+    if section == "close"
+
+        p = zeros(Float64, nele)
+        # compute the torsional constant for close-section
+        for i = 1:nele
+            sn = ends[i,1]
+            fn = ends[i,2]
+
+            sn = Int(sn)
+            fn = Int(fn)
+
+            p[i] = ((coord[sn,1]-xc)*(coord[fn,2]-yc)-(coord[fn,1]-xc)*(coord[sn,2]-yc))/L[i]
+        end
+        J = 4*sum(p.*L/2)^2/sum(L./t)
+        xs = NaN; ys = NaN; Cw = NaN; B1 = NaN; B2 = NaN; Pe = NaN; dcoord = NaN; wn=[NaN; NaN]
+    elseif section == "open"
+        # compute the torsional constant for open-section
+        J = sum(L.*t.^3)/3
+
+        # compute the shear center & initialize variables
+        nnode = size(coord,1)
+        w = zeros((nnode,2))
+        w[Int(ends[1,1]),1] = ends[1,1]
+        wo = zeros((nnode,2))
+        wo[Int(ends[1,1]),1] = ends[1,1]
+        Iwx = 0.0; Iwy = 0.0; wno = 0.0; Cw = 0.0
+
+        for j = 1:nele
+            i = 1
+            while ((ends[i,1] in w[:,1]) & (ends[i,2] in w[:,1]))|(!(ends[i,1] in w[:,1])&(ends[i,2] ∉ w[:,1]))
+                i = i+1
+            end
+            sn = ends[i,1]
+            fn = ends[i,2]
+
+            sn = Int(sn)
+            fn = Int(fn)
+
+            p = ((coord[sn,1]-xc)*(coord[fn,2]-yc)-(coord[fn,1]-xc)*(coord[sn,2]-yc))/L[i]
+            if w[sn,1]==0
+                w[sn,1] = sn;
+                w[sn,2] = w[fn,2]-p*L[i]
+            elseif w[fn,1]==0
+                w[fn,1] = fn;
+                w[fn,2] = w[sn,2]+p*L[i]
+            end
+            Iwx = Iwx+(1/3*(w[sn,2]*(coord[sn,1]-xc)+w[fn,2]*(coord[fn,1]-xc))+1/6*(w[sn,2]*(coord[fn,1]-xc)+w[fn,2]*(coord[sn,1]-xc)))*t[i]* L[i];
+            Iwy = Iwy+(1/3*(w[sn,2]*(coord[sn,2]-yc)+w[fn,2]*(coord[fn,2]-yc))+1/6*(w[sn,2]*(coord[fn,2]-yc)+w[fn,2]*(coord[sn,2]-yc)))*t[i]* L[i];
+        end
+
+        if (Ix*Iy-Ixy^2)!=0.0
+            xs = (Iy*Iwy-Ixy*Iwx)/(Ix*Iy-Ixy^2)+xc
+            ys = -(Ix*Iwx-Ixy*Iwy)/(Ix*Iy-Ixy^2)+yc
+        else
+            xs = xc; ys = yc
+        end
+
+        if abs(xs/sqrt(A)) .< 1e-12
+            xs = 0
+        end
+        if abs(ys/sqrt(A)) .< 1e-12
+            ys = 0
+        end
+
+        # compute the unit warping
+        for j = 1:nele
+            i = 1
+            while ((ends[i,1] in wo[:,1]) & (ends[i,2] in wo[:,1]))|(!(ends[i,1] in wo[:,1])&(ends[i,2] ∉ wo[:,1]))
+                i = i+1
+            end
+            sn = ends[i,1]
+            fn = ends[i,2]
+
+            sn = Int(sn)
+            fn = Int(fn)
+
+            po = ((coord[sn,1]-xs)*(coord[fn,2]-ys)-(coord[fn,1]-xs)*(coord[sn,2]-ys))/L[i]
+            if wo[sn,1]==0
+                wo[sn,1] = sn;
+                wo[sn,2] = wo[fn,2]-po*L[i]
+            elseif wo[Int(ends[i,2]),1]==0
+                wo[fn,1] = fn;
+                wo[fn,2] = wo[sn,2]+po*L[i]
+            end
+            wno = wno+1/(2*A)*(wo[sn,2]+wo[fn,2])*t[i]* L[i];
+        end
+        wn = wno .-wo[:,2]
+
+        # compute the warping constant
+        for i = 1:nele
+            sn = ends[i,1]; fn = ends[i,2]
+
+            sn = Int(sn)
+            fn = Int(fn)
+
+            Cw = Cw+1/3*(wn[sn]^2+wn[sn]*wn[fn]+wn[fn]^2)*t[i]* L[i]
+        end
+
+        # transfer the shear center coordinates to the centroid principal coordinates
+        s12 = [cos(theta) sin(theta); -sin(theta) cos(theta)]* transpose([xs-xc ys-yc]);
+        # compute the polar radius of gyration of cross section about shear center
+        ro = sqrt((I1+I2)/A+s12[1]^2+s12[2]^2)
+
+        # compute B1 & B2
+        B1 = 0; B2 = B1
+        for i = 1:nele
+            sn = ends[i,1]
+            fn = ends[i,2];
+
+            sn = Int(sn)
+            fn = Int(fn)
+
+            x1 = coord12[sn,1]; y1 = coord12[sn,2]
+            x2 = coord12[fn,1]; y2 = coord12[fn,2]
+            B1 = B1+((y1+y2)*(y1^2+y2^2)/4+(y1*(2*x1^2+(x1+x2)^2)+y2*(2*x2^2+(x1+x2)^2))/12)*L[i]*t[i]
+            B2 = B2+((x1+x2)*(x1^2+x2^2)/4+(x1*(2*y1^2+(y1+y2)^2)+x2*(2*y2^2+(y1+y2)^2))/12)*L[i]*t[i]
+        end
+        B1 = B1/I1-2*s12[2]
+        B2 = B2/I2-2*s12[1];
+
+        if abs(B1/sqrt(A)) .< 1e-12
+            B1 = 0
+        end
+        if abs(B2/sqrt(A)) .< 1e-12
+            B2 = 0
+        end
+    elseif section == "arbitrary"
+        J = sum(L.*t.^3)/3
+        xs = NaN; ys = NaN; Cw = NaN; B1 = NaN; B2 = NaN; Pe = NaN; dcoord = NaN; wn=NaN
+
+        #use the open section algorithm; modified to handle multiple parts; but
+        #not completely generalized *that is a work for a future day* (17 Dec
+        #2015) the primary goal here is to not crash the section property
+        #calculators & applied stress generators when users have done a built
+        #up section...
+
+        # compute the torsional constant for open-section
+        J = sum(L.*t.^3)/3
+
+        # compute the shear center & initialize variables
+        nnode = size(coord,1)
+        w = zeros(nnode,2); w[Int(ends[1,1]),1] = ends[1,1]
+        wo = zeros(nnode,2); wo[Int(ends[1,1]),1] = ends[1,1]
+        Iwx = 0; Iwy = 0; wno = 0; Cw = 0
+
+        for j = 1:nele
+            i = 1
+            while ((ends[i,1] in w[:,1]) & (ends[i,2] in w[:,1]))|(!(ends[i,1] in w[:,1])&(ends[i,2] ∉ w[:,1]))
+                    i = i+1
+                    if i>nele #brute force catch to continue calculation for multi part
+                        i=nele
+                        break
+                    end
+            end
+            sn = ends[i,1]
+            fn = ends[i,2]
+
+            sn = Int(sn)
+            fn = Int(fn)
+
+            p = ((coord[sn,1]-xc)*(coord[fn,2]-yc)-(coord[fn,1]-xc)*(coord[sn,2]-yc))/L[i]
+            if w[sn,1]==0
+                w[sn,1] = sn;
+                w[sn,2] = w[fn,2]-p*L[i]
+            elseif w[fn,1]==0
+                w[fn,1] = fn;
+                w[fn,2] = w[sn,2]+p*L[i]
+            end
+            Iwx = Iwx+(1/3*(w[sn,2]*(coord[sn,1]-xc)+w[fn,2]*(coord[fn,1]-xc))+1/6*(w[sn,2]*(coord[fn,1]-xc)+w[fn,2]*(coord[sn,1]-xc)))*t[i]* L[i];
+            Iwy = Iwy+(1/3*(w[sn,2]*(coord[sn,2]-yc)+w[fn,2]*(coord[fn,2]-yc))+1/6*(w[sn,2]*(coord[fn,2]-yc)+w[fn,2]*(coord[sn,2]-yc)))*t[i]* L[i];
+        end
+
+        if (Ix*Iy-Ixy^2) != 0
+            xs = (Iy*Iwy-Ixy*Iwx)/(Ix*Iy-Ixy^2)+xc
+            ys = -(Ix*Iwx-Ixy*Iwy)/(Ix*Iy-Ixy^2)+yc
+        else
+            xs = xc; ys = yc
+        end
+
+        if abs(xs/sqrt(A)) .< 1e-12
+            xs = 0
+        end
+        if abs(ys/sqrt(A)) .< 1e-12
+            ys = 0
+        end
+
+        # compute the unit warping
+        for j = 1:nele
+            i = 1
+            while ((ends[i,1] in wo[:,1]) & (ends[i,2] in wo[:,1]))|(!(ends[i,1] in wo[:,1])&(ends[i,2] ∉ wo[:,1]))
+                    i = i+1
+                    if i>nele #brute force catch to continue calculation for multi part
+                        i=nele
+                        break
+                    end
+            end
+            sn = ends[i,1]; fn = ends[i,2]
+
+            sn = Int(sn)
+            fn = Int(fn)
+
+            po = ((coord[sn,1]-xs)*(coord[fn,2]-ys)-(coord[fn,1]-xs)*(coord[sn,2]-ys))/L[i]
+            if wo[sn,1]==0
+                wo[sn,1] = sn;
+                wo[sn,2] = wo[fn,2]-po*L[i]
+            elseif wo[Int(ends[i,2]),1]==0
+                wo[fn,1] = fn;
+                wo[fn,2] = wo[sn,2]+po*L[i]
+            end
+            wno = wno+1/(2*A)*(wo[sn,2]+wo[fn,2])*t[i]* L[i];
+        end
+        wn = wno .- wo[:,2]
+
+        # compute the warping constant
+        for i = 1:nele
+            sn = ends[i,1]; fn = ends[i,2]
+
+            sn = Int(sn)
+            fn = Int(fn)
+
+            Cw = Cw+1/3*(wn[sn]^2+wn[sn]*wn[fn]+wn[fn]^2)*t[i]* L[i]
+        end
+
+        # transfer the shear center coordinates to the centroid principal coordinates
+        s12 = [cos(theta) sin(theta); -sin(theta) cos(theta)]*transpose([xs-xc ys-yc]);
+        # compute the polar radius of gyration of cross section about shear center
+        ro = sqrt((I1+I2)/A+s12[1]^2+s12[2]^2)
+
+        # compute B1 & B2
+        B1 = 0; B2 = B1
+        for i = 1:nele
+            sn = ends[i,1]; fn = ends[i,2];
+
+            sn = Int(sn)
+            fn = Int(fn)
+
+            x1 = coord12[sn,1]; y1 = coord12[sn,2]
+            x2 = coord12[fn,1]; y2 = coord12[fn,2]
+            B1 = B1+((y1+y2)*(y1^2+y2^2)/4+(y1*(2*x1^2+(x1+x2)^2)+y2*(2*x2^2+(x1+x2)^2))/12)*L[i]*t[i]
+            B2 = B2+((x1+x2)*(x1^2+x2^2)/4+(x1*(2*y1^2+(y1+y2)^2)+x2*(2*y2^2+(y1+y2)^2))/12)*L[i]*t[i]
+        end
+        B1 = B1/I1-2*s12[2]
+        B2 = B2/I2-2*s12[1];
+
+        if abs(B1/sqrt(A)) .< 1e-12
+            B1 = 0
+        end
+        if abs(B2/sqrt(A)) .< 1e-12
+            B2 = 0
+        end
+
+    end
+
+    section_properties = SectionProperties(coord,ends,A,xc,yc,Ix,Iy,Ixy,theta,I1,I2,J,xs,ys,Cw,B1,B2,wn)
+
+    return section_properties
+
+end
+
+
+
+
+
 
 function klocal(Ex,Ey,vx,vy,G,t,a,b,BC,m_a)
     #
@@ -264,6 +1065,79 @@ function BC_I1_5(BC,kk,nn,a)
 
     return I1,I2,I3,I4,I5
 
+end
+
+function BC_I1_5_atpoint(BC,kk,nn,a,ys)
+    #
+    # Calculate the value of the longitundinal shape functions for discrete springs
+    #
+    # BC: a string specifying boundary conditions to be analyzed:
+        #"S-S" simply-pimply supported boundary condition at loaded edges
+        #"C-C" clamped-clamped boundary condition at loaded edges
+        #"S-C" simply-clamped supported boundary condition at loaded edges
+        #"C-F" clamped-free supported boundary condition at loaded edges
+        #"C-G" clamped-guided supported boundary condition at loaded edges
+    #Outputs:
+    #I1;I5
+        #calculation of I1 is the value of Ym[y/L]*Yn[y/L]
+        #calculation of I5 is the value of Ym"(y/L)*Yn"(y/L)
+    
+    Ykk = Ym_at_ys(BC,kk,ys,a)
+    Ynn = Ym_at_ys(BC,nn,ys,a)
+    Ykkprime = Ymprime_at_ys(BC,kk,ys,a)    
+    Ynnprime = Ymprime_at_ys(BC,nn,ys,a)    
+    I1=Ykk*Ynn
+    I5=Ykkprime*Ynnprime
+    
+    return I1, I5
+            
+end
+
+function Ym_at_ys(BC,m,ys,a)
+    #Longitudinal shape function values
+    #written by BWS in 2015
+    #could be called in lots of places, but now (2015) is hardcoded by Zhanjie
+    #in several places in the interface
+    #written in 2015 because wanted it for a new idea on discrete springs
+    
+    if BC == "S-S"
+        Ym=sin(m*pi*ys/a)
+    elseif BC == "C-C"
+        Ym=sin(m*pi*ys/a) .*sin(pi*ys/a)
+    elseif (BC == "S-C") | (BC == "C-S")
+        Ym=sin((m+1)*pi*ys/a)+(m+1)/m*sin(m*pi*ys/a)
+    elseif (BC == "C-F") | (BC == "F-C")
+        Ym=1-cos((m-0.5)*pi*ys/a)
+    elseif (BC == "C-G") | (BC = "G-C")
+        Ym=sin((m-0.5)*pi*ys/a) .*sin(pi*ys/a/2)
+    end
+   
+    return Ym
+
+end
+
+
+function Ymprime_at_ys(BC,m,ys,a)
+    #First Derivative of Longitudinal shape function values
+    #written by BWS in 2015
+    #could be called in lots of places, but now (2015) is hardcoded by Zhanjie
+    #in several places in the interface
+    #written in 2015 because wanted it for a new idea on discrete springs
+    
+    if BC == "S-S"
+        Ymprime=(pi*m*cos((pi*m*ys)/a))/a
+    elseif BC == "C-C"
+        Ymprime=(pi*cos((pi*ys)/a)*sin((pi*m*ys)/a))/a + (pi*m*sin((pi*ys)/a)*cos((pi*m*ys)/a))/a
+    elseif (BC == "S-C") | (BC == "C-S")
+        Ymprime=(pi*cos((pi*ys*(m + 1))/a)*(m + 1))/a + (pi*cos((pi*m*ys)/a)*(m + 1))/a
+    elseif (BC == "C-F") | (BC == "F-C")
+        Ymprime=(pi*sin((pi*ys*(m - 1/2))/a)*(m - 1/2))/a
+    elseif (BC = "C-G") | (BC == "G-C")
+        Ymprime=(pi*sin((pi*ys*(m - 1/2))/a)*cos((pi*ys)/(2*a)))/(2*a) + (pi*cos((pi*ys*(m - 1/2))/a)*sin((pi*ys)/(2*a))*(m - 1/2))/a
+    end
+    
+    return Ymprime
+            
 end
 
 
@@ -719,6 +1593,193 @@ end
 
 
 
+function spring_klocal(ku,kv,kw,kq,a,BC,m_a,discrete,ys)
+    #
+    #Generate spring stiffness matrix [k] in local coordinates, modified from
+    #klocal
+    #BWS DEC 2015
+    
+    # Inputs:
+    # ku;kv;kw;kq spring stiffness values 
+    # a: length of the strip in longitudinal direction
+    # BC: ["S-S"] a string specifying boundary conditions to be analyzed:
+        #"S-S" simply-pimply supported boundary condition at loaded edges
+        #"C-C" clamped-clamped boundary condition at loaded edges
+        #"S-C" simply-clamped supported boundary condition at loaded edges
+        #"C-F" clamped-free supported boundary condition at loaded edges
+        #"C-G" clamped-guided supported boundary condition at loaded edges
+    # m_a: longitudinal terms [or half-wave numbers] for this length()
+    # discrete .== 1 if discrete spring
+    # ys = location of discrete spring
+    
+    # Output:
+    # k: local stiffness matrix; a totalm x totalm matrix of 8 by 8 submatrices.
+    # k=[kmp]totalm x totalm block matrix
+    # each kmp is the 8 x 8 submatrix in the DOF order [u1 v1 u2 v2 w1 theta1 w2 theta2]'
+    
+    #
+    totalm = length(m_a); #Total number of longitudinal terms m
+    #
+    #modified by CDM
+    k=sparse(zeros(Float64, (8*totalm,8*totalm)))
+
+    z0=zeros(Float64, (4,4))
+    for m=1:1:totalm
+        for p=1:1:totalm
+            #
+            km_mp=zeros(Float64, (4,4))
+            kf_mp=zeros(Float64, (4,4))
+            um=m_a[m]*pi
+            up=m_a[p]*pi
+            #
+            if Int(discrete) == 1
+                I1,I5 = BC_I1_5_atpoint(BC,m_a[m],m_a[p],a,ys)
+            else #foundation spring
+                I1,I2,I3,I4,I5 = BC_I1_5(BC,m_a[m],m_a[p],a)
+            end
+            #
+            #asemble the matrix of km_mp
+            km_mp=[ ku*I1   0                   -ku*I1      0
+                    0       kv*I5*a^2/(um*up)   0           -kv*I5*a^2/(um*up) 
+                    -ku*I1  0                   ku*I1       0
+                    0       -kv*I5*a^2/(um*up)  0           kv*I5*a^2/(um*up)]
+            #
+            #asemble the matrix of kf_mp 
+             kf_mp=[ kw*I1   0       -kw*I1      0
+                    0       kq*I1   0           -kq*I1 
+                    -kw*I1  0       kw*I1       0
+                    0       -kq*I1  0           kq*I1];      
+            #assemble the membrane & flexural stiffness matrices      
+            kmp=[km_mp  z0
+                   z0  kf_mp]
+    
+            #add it into local element stiffness matrix by corresponding to m
+            k[8*(m-1)+1:8*m,8*(p-1)+1:8*p] .= kmp
+        end
+    end
+    
+    return k    
+        
+            
+    end
+
+
+function spring_trans(alpha,ks,m_a)
+    #
+    # Transfer the local stiffness into global stiffness
+    # Zhanjie 2008
+    # modified by Z. Li; Aug. 09; 2009
+    # adapted for spring Dec 2015
+    
+    totalm = length(m_a) #Total number of longitudinal terms m
+    a=alpha
+    
+    #added by CDM
+    gamma = zeros(Float64, (size(ks)[1], size(ks)[2]))
+    
+    #
+    z0 = 0.0
+    gam=[cos(a)   z0    z0	  z0	-sin(a)	z0   z0	   z0
+            z0	  1	    z0	  z0	  z0    z0	 z0    z0
+            z0	  z0  cos(a)  z0	  z0	z0 -sin(a) z0
+            z0	  z0	z0	   1	  z0	z0	 z0	   z0
+            sin(a) z0	z0	  z0	cos(a)	z0	 z0	   z0
+            z0	  z0	z0	  z0	  z0	1	 z0    z0
+            z0	  z0  sin(a)  z0	  z0	z0	cos(a) z0
+            z0	  z0	z0	  z0	  z0	z0	 z0	   1 ]
+    #extend to multi-m
+    for i=1:totalm
+        gamma[8*(i-1)+1:8*i,8*(i-1)+1:8*i] .= gam
+    end
+    #
+    ksglobal=gamma*ks*gamma'
+    
+    return ksglobal
+
+end
+
+
+function spring_assemble(K,k,nodei,nodej,nnodes,m_a)
+    #
+    #Add the [spring] contribution to the global stiffness matrix
+
+    #Outputs:
+    # K: global elastic stiffness matrix
+    # K & Kg: totalm x totalm submatrices. Each submatrix is similar to the
+    # one used in original CUFSM for single longitudinal term m in the DOF order
+    #[u1 v1...un vn w1 01...wn 0n]m'.
+
+    # Z. Li; June 2008
+    # modified by Z. Li; Aug. 09; 2009
+    # Z. Li; June 2010
+    # adapted for springs BWS Dec 2015
+
+    #added by CDM
+    nodei = Int(nodei)
+    nodej = Int(nodej)
+    nnodes = Int(nnodes)
+
+    totalm = length(m_a) #Total number of longitudinal terms m
+    K2=sparse(zeros(Float64, (4*nnodes*totalm,4*nnodes*totalm)))
+    K3=sparse(zeros(Float64, (4*nnodes*totalm,4*nnodes*totalm)))
+    skip=2*nnodes
+
+    for i=1:1:totalm
+        for j=1:1:totalm
+            #Submatrices for the initial stiffness
+            k11=k[8*(i-1)+1:8*(i-1)+2,8*(j-1)+1:8*(j-1)+2]
+            k12=k[8*(i-1)+1:8*(i-1)+2,8*(j-1)+3:8*(j-1)+4]
+            k13=k[8*(i-1)+1:8*(i-1)+2,8*(j-1)+5:8*(j-1)+6]
+            k14=k[8*(i-1)+1:8*(i-1)+2,8*(j-1)+7:8*(j-1)+8]
+            k21=k[8*(i-1)+3:8*(i-1)+4,8*(j-1)+1:8*(j-1)+2]
+            k22=k[8*(i-1)+3:8*(i-1)+4,8*(j-1)+3:8*(j-1)+4]
+            k23=k[8*(i-1)+3:8*(i-1)+4,8*(j-1)+5:8*(j-1)+6]
+            k24=k[8*(i-1)+3:8*(i-1)+4,8*(j-1)+7:8*(j-1)+8]
+            k31=k[8*(i-1)+5:8*(i-1)+6,8*(j-1)+1:8*(j-1)+2]
+            k32=k[8*(i-1)+5:8*(i-1)+6,8*(j-1)+3:8*(j-1)+4]
+            k33=k[8*(i-1)+5:8*(i-1)+6,8*(j-1)+5:8*(j-1)+6]
+            k34=k[8*(i-1)+5:8*(i-1)+6,8*(j-1)+7:8*(j-1)+8]
+            k41=k[8*(i-1)+7:8*(i-1)+8,8*(j-1)+1:8*(j-1)+2]
+            k42=k[8*(i-1)+7:8*(i-1)+8,8*(j-1)+3:8*(j-1)+4]
+            k43=k[8*(i-1)+7:8*(i-1)+8,8*(j-1)+5:8*(j-1)+6]
+            k44=k[8*(i-1)+7:8*(i-1)+8,8*(j-1)+7:8*(j-1)+8]
+            #
+            K2[4*nnodes*(i-1)+nodei*2-1:4*nnodes*(i-1)+nodei*2,4*nnodes*(j-1)+nodei*2-1:4*nnodes*(j-1)+nodei*2]=k11
+            if nodej != 0
+                K2[4*nnodes*(i-1)+nodei*2-1:4*nnodes*(i-1)+nodei*2,4*nnodes*(j-1)+nodej*2-1:4*nnodes*(j-1)+nodej*2]=k12
+                K2[4*nnodes*(i-1)+nodej*2-1:4*nnodes*(i-1)+nodej*2,4*nnodes*(j-1)+nodei*2-1:4*nnodes*(j-1)+nodei*2]=k21
+                K2[4*nnodes*(i-1)+nodej*2-1:4*nnodes*(i-1)+nodej*2,4*nnodes*(j-1)+nodej*2-1:4*nnodes*(j-1)+nodej*2]=k22
+            end
+            #
+            K2[4*nnodes*(i-1)+skip+nodei*2-1:4*nnodes*(i-1)+skip+nodei*2,4*nnodes*(j-1)+skip+nodei*2-1:4*nnodes*(j-1)+skip+nodei*2]=k33
+            if nodej != 0
+                K2[4*nnodes*(i-1)+skip+nodei*2-1:4*nnodes*(i-1)+skip+nodei*2,4*nnodes*(j-1)+skip+nodej*2-1:4*nnodes*(j-1)+skip+nodej*2]=k34
+                K2[4*nnodes*(i-1)+skip+nodej*2-1:4*nnodes*(i-1)+skip+nodej*2,4*nnodes*(j-1)+skip+nodei*2-1:4*nnodes*(j-1)+skip+nodei*2]=k43
+                K2[4*nnodes*(i-1)+skip+nodej*2-1:4*nnodes*(i-1)+skip+nodej*2,4*nnodes*(j-1)+skip+nodej*2-1:4*nnodes*(j-1)+skip+nodej*2]=k44
+            end        #
+            K2[4*nnodes*(i-1)+nodei*2-1:4*nnodes*(i-1)+nodei*2,4*nnodes*(j-1)+skip+nodei*2-1:4*nnodes*(j-1)+skip+nodei*2]=k13
+            if nodej != 0
+                K2[4*nnodes*(i-1)+nodei*2-1:4*nnodes*(i-1)+nodei*2,4*nnodes*(j-1)+skip+nodej*2-1:4*nnodes*(j-1)+skip+nodej*2]=k14
+                K2[4*nnodes*(i-1)+nodej*2-1:4*nnodes*(i-1)+nodej*2,4*nnodes*(j-1)+skip+nodei*2-1:4*nnodes*(j-1)+skip+nodei*2]=k23
+                K2[4*nnodes*(i-1)+nodej*2-1:4*nnodes*(i-1)+nodej*2,4*nnodes*(j-1)+skip+nodej*2-1:4*nnodes*(j-1)+skip+nodej*2]=k24
+            end
+            #
+            K2[4*nnodes*(i-1)+skip+nodei*2-1:4*nnodes*(i-1)+skip+nodei*2,4*nnodes*(j-1)+nodei*2-1:4*nnodes*(j-1)+nodei*2]=k31
+            if nodej != 0
+                K2[4*nnodes*(i-1)+skip+nodei*2-1:4*nnodes*(i-1)+skip+nodei*2,4*nnodes*(j-1)+nodej*2-1:4*nnodes*(j-1)+nodej*2]=k32
+                K2[4*nnodes*(i-1)+skip+nodej*2-1:4*nnodes*(i-1)+skip+nodej*2,4*nnodes*(j-1)+nodei*2-1:4*nnodes*(j-1)+nodei*2]=k41
+                K2[4*nnodes*(i-1)+skip+nodej*2-1:4*nnodes*(i-1)+skip+nodej*2,4*nnodes*(j-1)+nodej*2-1:4*nnodes*(j-1)+nodej*2]=k42
+            end
+            #
+        end
+    end
+    K=K+K2
+
+    return K
+
+end
+
+
 
 function strip(prop,node,elem,lengths,springs,constraints,neigs)
     #HISTORY
@@ -763,7 +1824,8 @@ function strip(prop,node,elem,lengths,springs,constraints,neigs)
     # \analysis\constr_BCFlag.m : determine flags for user constraints & internal [at node] B.transpose(C)s
     # \analysis\cFSM\constr_user.m : user defined contraints in cFSM style
 
-    #CDM Notes, April 2021
+    #CDM Notes
+    #April 2021
     #Ported to Julia.
     #Old school CUFSM here, no cFSM and just "S-S" boundary conditions.
 
@@ -841,7 +1903,7 @@ function strip(prop,node,elem,lengths,springs,constraints,neigs)
             #     end
         #Now from version 4.3 this is the new springs method
         if (!isempty(springs))
-            if (length(springs[1,:])==10) & (springs[1,1]!=0) #springs variable exists, is right length, & non-zero
+            if (length(springs[1,:])==10) & (springs[1,1]!==0) #springs variable exists, is right length, & non-zero
                 nsprings = length(springs[:,1])
                 for i=1:nsprings
                     #Generate spring stiffness matrix [ks] in local coordinates
@@ -1000,19 +2062,19 @@ function stresgen(node,P,Mxx,Mzz,M11,M22,A,xcg,zcg,Ixx,Izz,Ixz,thetap,I11,I22,un
     th=thetap*pi/180
     prin_coord=inv([cos(th) -sin(th);  sin(th) cos(th)])*[(node[:,2] .-xcg)' ; (node[:,3] .-zcg)']
     #M11
-    stressinc = M11 .* prin_coord[2,:]' ./I11
+    stressinc = M11 .* prin_coord[2,:] ./I11
     if maximum(isnan.(stressinc))
         stressinc = 0.0
     end
     stress = stress .+ stressinc
     #M22
-    stressinc=-M22 .* prin_coord[1,:]' ./I22
+    stressinc=-M22 .* prin_coord[1,:] ./I22
     if maximum(isnan.(stressinc))
         stressinc = 0.0
     end
     stress = stress .+ stressinc
     #assign stress to node variable
-    node[:,8] .= stress'  #check this transpose 
+    node[:,8] .= stress
 
     return node
 
