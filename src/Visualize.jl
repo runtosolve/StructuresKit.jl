@@ -2,8 +2,9 @@ module Visualize
 
 using GeometryBasics
 using FileIO
+using Plots
 
-export Mesh3D, create_ply_file
+export Mesh3D, create_ply_file, show_closed_cross_section, show_multi_branch_cross_section
 
 
 function Mesh3D(CrossSectionNodes, z, u, v, ϕ)
@@ -66,4 +67,63 @@ end
 
 
 
+function show_closed_cross_section(xcoords, ycoords, markershape, xlims, ylims)
+
+    num_nodes = length(xcoords)
+
+    plt = []
+
+    for i = 1:num_nodes
+
+        if i == 1
+
+            plt = plot([xcoords[i], xcoords[i+1]], [ycoords[i], ycoords[i+1]], size = (600, 600), legend = false, linecolor = :black, markercolor = :black, markershape = markershape, seriestype = :line, xlims = xlims, ylims = ylims)
+
+        elseif i<num_nodes
+            
+            plot!(plt, [xcoords[i], xcoords[i+1]], [ycoords[i], ycoords[i+1]], size = (600, 600), legend = false, linecolor = :black, markercolor = :black, markershape = markershape, seriestype = :line, xlims = xlims, ylims = ylims)
+        
+        elseif i==num_nodes
+            
+            plot!(plt, [xcoords[i], xcoords[1]], [ycoords[i], ycoords[1]], size = (600, 600), legend = false, linecolor = :black, markercolor = :black, markershape = markershape, seriestype = :line, xlims = xlims, ylims = ylims)
+        
+
+        end
+
+    end
+
+    return plt
+
+end
+
+
+function show_multi_branch_cross_section(xcoords, ycoords, element_connectivity, markershape, xlims, ylims)
+
+    num_elem = size(element_connectivity)[1]
+
+    plt = []
+
+    for i = 1:num_elem
+
+        node_i = Int(element_connectivity[i, 1])
+        node_j = Int(element_connectivity[i, 2])
+
+        if i == 1
+
+            plt = plot([xcoords[node_i], xcoords[node_j]], [ycoords[node_i], ycoords[node_j]], size = (600, 600), legend = false, linecolor = :black, markercolor = :black, markershape = markershape, seriestype = :line, xlims = xlims, ylims = ylims)
+
+        else
+            
+            plot!(plt, [xcoords[node_i], xcoords[node_j]], [ycoords[node_i], ycoords[node_j]], size = (600, 600), legend = false, linecolor = :black, markercolor = :black, markershape = markershape, seriestype = :line, xlims = xlims, ylims = ylims)
+        
+        end
+
+    end
+
+    return plt
+
+end
+
+
 end #module
+

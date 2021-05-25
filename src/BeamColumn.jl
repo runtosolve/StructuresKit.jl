@@ -8,27 +8,84 @@ using NLsolve
 using ..Mesh
 
 
-export solve
+export define, solve, Model 
 
 
 
-function calculateDerivativeOperators(dz)
+mutable struct Model
 
-   NumberOfNodes=length(dz)+1
+   member_definitions::Vector{Tuple{Float64, Float64, Int64, Int64, Int64, Int64, Int64}}
+   section_properties::Vector{Tuple{Float64, Float64, Float64, Float64, Float64}}
+   material_properties::Vector{Tuple{Float64, Float64}}
+   spring_stiffness::Vector{Tuple{Float64, Float64}}
+   spring_location::Vector{Tuple{Float64}}
+   supports::Array{Float64}
+   loads::Tuple{Float64, Float64, }
+   load_location::Vector{Tuple{Float64, Float64}}
+   end_boundary_conditions::Array{Int64}
+
+   qx::Array{Float64}
+   qy::Array{Float64}
+   P::Array{Float64}
+
+   K::Matrix{Float64}
+   F::Array{Float64}
+
+   free_dof::Array{Int64}
+  
+   A::Array{Float64}
+   Ix::Array{Float64}
+   Iy::Array{Float64}
+   Io::Array{Float64}
+   J::Array{Float64}
+   Cw::Array{Float64}
+   xc::Array{Float64}
+   yc::Array{Float64}
+   xs::Array{Float64}
+   ys::Array{Float64}
+   xo::Array{Float64}  #distance from centroid to shear center
+   yo::Array{Float64}  #distance from centroid to shear center
+
+   E::Array{Float64}
+   ν::Array{Float64}
+   G::Array{Float64}
+
+   ax::Array{Float64} #distance from shear center to qy applied load location
+   ay::Array{Float64} #distance from shear center to qx applied load location
+
+   kx::Array{Float64} 
+   ky::Array{Float64}
+   kϕ::Array{Float64}
+
+   hx::Array{Float64} #distance from centroid to ky spring location
+   hy::Array{Float64} #distance from centroid to kx spring location
+
+   z::Array{Float64}
+   dm::Array{Int64}
+   
+   u::Array{Float64}
+   v::Array{Float64}
+   ϕ::Array{Float64}
+
+end
+
+function calculate_derivative_operators(dz)
+
+   num_nodes=length(dz)+1
 
    # add extra dz on each end for padding nodes used in CenteredDifference
    dz = [dz[1]; dz; dz[end]]
 
-   NthDerivative = 4
-   DerivativeOrder = 2
-   Azzzz = CenteredDifference(NthDerivative, DerivativeOrder, dz, NumberOfNodes)
+   nth_derivative = 4
+   derivative_order = 2
+   Azzzz = CenteredDifference(nth_derivative, derivative_order, dz, num_nodes)
 
    Azzzz = Array(Azzzz)   #concretization of derivative-free operator
    Azzzz = Azzzz[:,2:end-1]  #trim off ghost nodes, not needed
 
-   NthDerivative = 2
-   DerivativeOrder = 2
-   Azz = CenteredDifference(NthDerivative, DerivativeOrder, dz, NumberOfNodes)
+   nth_derivative = 2
+   derivative_order = 2
+   Azz = CenteredDifference(nth_derivative, derivative_order, dz, num_nodes)
    Azz = Array(Azz)   #concretization of derivative-free operator
    Azz = Azz[:,2:end-1]  #trim off ghost nodes, not needed
 
@@ -36,108 +93,108 @@ function calculateDerivativeOperators(dz)
 
 end
 
-function calculateBoundaryStencils(BCFlag, h, NthDerivative)
+function calculate_boundary_stencils(bc_flag, h, nth_derivative)
 
    #Calculate boundary conditions stencils without ghost nodes using
    #Jorge M. Souza, "Boundary Conditions in the Finite Difference Method"
    #https://cimec.org.ar/ojs/index.php/mc/article/download/2662/2607
 
 
-   TaylorCoeffs =  [1; h; h^2/2; h^3/6; h^4/24]
+   taylor_coeffs =  [1; h; h^2/2; h^3/6; h^4/24]
 
-   RHS = zeros(5)
+   rhs = zeros(5)
    #row1*[A;B;C;D;E]*u2
    #row2*[A;B;C;D;E]*u2'
    #row3*[A;B;C;D;E]*u2''
    #row4*[A;B;C;D;E]*u2'''
    #row5*[A;B;C;D;E]*u2''''
 
-   if BCFlag == 1 #simply supported end
+   if bc_flag == 1 #simply supported end
 
-      LHS = [1 1 1 1 0
+      lhs = [1 1 1 1 0
          -1 0 1 2 0
          1 0 1 4 2
          -1 0 1 8 -6
          1 0 1 16 12]
 
-      RHS[NthDerivative+1] = (1/TaylorCoeffs[NthDerivative+1])
-      BoundaryStencil = LHS\RHS
-      BoundaryStencil = ((BoundaryStencil[1:4]),(zeros(4)))  #since u''=0
+      rhs[nth_derivative+1] = (1/TaylorCoeffs[nth_derivative+1])
+      boundary_stencil = lhs\rhs
+      boundary_stencil = ((boundary_stencil[1:4]),(zeros(4)))  #since u''=0
 
 
 
-   elseif BCFlag == 2 #fixed end
+   elseif bc_flag == 2 #fixed end
 
-      LHS = [1 1 1 1 0
+      lhs = [1 1 1 1 0
          -1 0 1 2 1
          1 0 1 4 -2
          -1 0 1 8 3
          1 0 1 16 -4]
 
-      RHS[NthDerivative+1] = (1/TaylorCoeffs[NthDerivative+1])
-      BoundaryStencil = LHS\RHS
-      BoundaryStencil = ((BoundaryStencil[1:4]),(zeros(4)))  #since u'=0
+      rhs[nth_derivative+1] = (1/TaylorCoeffs[nth_derivative+1])
+      boundary_stencil = lhs\rhs
+      boundary_stencil = ((boundary_stencil[1:4]),(zeros(4)))  #since u'=0
 
-   elseif BCFlag == 3 #free end
+   elseif bc_flag == 3 #free end
                 #u'' u'''
-      LHS = [1 1 1  0   0
+      lhs = [1 1 1  0   0
            0 1 2  0   0
            0 1 4  0.5 0
            0 1 8  0   6
            0 1 16 0  0]
 
-      RHS[NthDerivative+1] = (1/TaylorCoeffs[NthDerivative+1])
-      BoundaryStencil1 = LHS\RHS  #at free end
-      BoundaryStencil1 = BoundaryStencil1[1:3]   #u''=u'''=0
+      rhs[nth_derivative+1] = (1/TaylorCoeffs[nth_derivative+1])
+      boundary_stencil1 = lhs\rhs  #at free end
+      boundary_stencil1 = boundary_stencil1[1:3]   #u''=u'''=0
 
       # use simply supported BC to find stencil at one node in from free end
-      LHS = [1 1 1 1 0
+      lhs = [1 1 1 1 0
          -1 0 1 2 0
          1 0 1 4 2
          -1 0 1 8 -6
          1 0 1 16 12]
 
-      RHS[NthDerivative+1] = (1/TaylorCoeffs[NthDerivative+1])
-      BoundaryStencil2 = LHS\RHS #at one node over from free end
-      BoundaryStencil2 = BoundaryStencil2[1:4]
-      BoundaryStencil = ((BoundaryStencil1), (BoundaryStencil2))  #two stencils are calculated
+      rhs[nth_derivative+1] = (1/TaylorCoeffs[nth_derivative+1])
+      boundary_stencil2 = lhs\rhs #at one node over from free end
+      boundary_stencil2 = boundary_stencil2[1:4]
+      boundary_stencil = ((boundary_stencil1), (boundary_stencil2))  #two stencils are calculated
 
    end
 
-   return BoundaryStencil
+   return boundary_stencil
 
 end
 
-function applyEndBoundaryConditions(A, EndBoundaryConditions, NthDerivative, dz)
+function apply_end_boundary_conditions(A, end_boundary_conditions, nth_derivative, dz)
 
    #left end
    h = dz[1]
-   BCFlag = EndBoundaryConditions[1]
-   BoundaryStencil = calculateBoundaryStencils(BCFlag,h,NthDerivative)
+   bc_flag = end_boundary_conditions[1]
+   boundary_stencil = calculate_boundary_stencils(bc_flag,h,nth_derivative)
 
    A[1,:] .= 0.0
    A[2,:] .= 0.0
 
-   if (BCFlag == 1) | (BCFlag == 2)   #make this cleaner, combine
-      A[2,1:length(BoundaryStencil[1])] = BoundaryStencil[1]
+   if (bc_flag == 1) | (bc_flag == 2)   #make this cleaner, combine
+      A[2,1:length(boundary_stencil[1])] = boundary_stencil[1]
    else
-      A[1,1:length(BoundaryStencil[1])] = BoundaryStencil[1]
-      A[2,1:length(BoundaryStencil[2])] = BoundaryStencil[2]
+      A[1,1:length(boundary_stencil[1])] = boundary_stencil[1]
+      A[2,1:length(boundary_stencil[2])] = boundary_stencil[2]
    end
 
    #right end
    h = dz[end]
-   BCFlag = EndBoundaryConditions[2]
-   BoundaryStencil = calculateBoundaryStencils(BCFlag,h,NthDerivative)
+   bc_flag = end_boundary_conditions[2]
+   boundary_stencil = calculateboundary_stencils(bc_flag,h,nth_derivative)
 
    A[end,:] .= 0.0
    A[end-1,:] .= 0.0
 
-   if (BCFlag == 1) | (BCFlag == 2)
-      A[end-1,(end-(length(BoundaryStencil[1])-1)):end] = reverse(BoundaryStencil[1])
+   if (bc_flag == 1) | (bc_flag == 2)
+      A[end-1,(end-(length(boundary_stencil[1])-1)):end] = reverse(boundary_stencil[1])
    else
-      A[end,end-(length(BoundaryStencil[1])-1):end] = reverse(BoundaryStencil[1])
-      A[end-1,end-(length(BoundaryStencil[2])-1):end] = reverse(BoundaryStencil[2])
+      A[end,end-(length(boundary_stencil[1])-1):end] = reverse(boundary_stencil[1])
+      A[end-1,end-(length(boundary_stencil[2])-1):end] = reverse(boundary_stencil[2])
    end
 
    return A
@@ -145,82 +202,73 @@ function applyEndBoundaryConditions(A, EndBoundaryConditions, NthDerivative, dz)
 end
 
 
-function define(MemberDefinitions, SectionProperties, MaterialProperties, Loads, Springs, EndBoundaryConditions, Supports)
+function define(member_definitions, section_properties, material_properties, loads, springs, end_boundary_conditions, supports)
 
+   dz, z, dm = Mesh.define_line_element(member_definitions)
 
-   dz, z, dm = Mesh.define_line_element(MemberDefinitions)
-
-   NumberOfNodes=length(dz)+1
-
+   num_nodes=length(dz)+1
 
    #define property vectors
-   A =  Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, SectionProperties, 3, 1)
-   Ix = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, SectionProperties, 3, 2)
-   Iy = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, SectionProperties, 3, 3)
-   J = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, SectionProperties, 3, 4)
-   Cw = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, SectionProperties, 3, 5)
-   xc = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, SectionProperties, 3, 6)
-   yc = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, SectionProperties, 3, 7)
-   xs = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, SectionProperties, 3, 8)
-   ys = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, SectionProperties, 3, 9)
+   A =  Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 1)
+   Ix = Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 2)
+   Iy = Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 3)
+   J = Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 4)
+   Cw = Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 5)
+   xc = Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 6)
+   yc = Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 7)
+   xs = Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 8)
+   ys = Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 9)
 
    xo = -(xc .- xs)
    yo = yc .- ys
 
    Io = Ix .+ Iy .+ A .* (xo.^2 + yo.^2)
 
-   E = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, MaterialProperties, 4, 1)
-   ν = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, MaterialProperties, 4, 2)
+   E = Mesh.create_line_element_property_array(member_definitions, dm, dz, material_properties, 4, 1)
+   ν = Mesh.create_line_element_property_array(member_definitions, dm, dz, material_properties, 4, 2)
    G = E./(2 .*(1 .+ ν))
 
-   # kx = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, Springs, 5, 1)
-   # ky = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, Springs, 5, 2)
-   # kϕ = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, Springs, 5, 3)
-   #
-   # hx = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, Springs, 5, 4)
-   # hy = Mesh.create_line_element_property_array(MemberDefinitions, dm, dz, Springs, 5, 5)
+   kx = spring_stiffness[1]
+   ky = spring_stiffness[2]
+   kϕ = spring_stiffness[3]
 
-   kx = Springs[1]
-   ky = Springs[2]
-   kϕ = Springs[3]
+   hx = spring_location[1]
+   hy = spring_location[2]
 
-   hx = Springs[4]
-   hy = Springs[5]
-
-   Azzzz,Azz = calculateDerivativeOperators(dz) #calculate derivative operators
+   Azzzz,Azz = calculate_derivative_operators(dz) #calculate derivative operators
 
    #apply left and right end boundary condition stencils to derivative operators
-   NthDerivative = 4
-   Azzzz = applyEndBoundaryConditions(Azzzz,EndBoundaryConditions,NthDerivative,dz)
+   nth_derivative = 4
+   Azzzz = apply_end_boundary_conditions(Azzzz,end_boundary_conditions,nth_derivative,dz)
 
-   NthDerivative = 2
-   Azz = applyEndBoundaryConditions(Azz,EndBoundaryConditions,NthDerivative,dz)
+   nth_derivative = 2
+   Azz = apply_end_boundary_conditions(Azz,end_boundary_conditions,nth_derivative,dz)
 
    #define load and load locations
-   P =  Loads[1]
-   qx = Loads[2]
-   qy = Loads[3]
-   ax = Loads[4]
-   ay = Loads[5]
+   P =  loads[1]
+   qx = loads[2]
+   qy = loads[3]
+   ax = load_location[1]
+   ay = load_location[2]
 
    #build identity matrix for ODE operations
-   AI = Matrix(1.0I,NumberOfNodes,NumberOfNodes)
+   AI = Matrix(1.0I,num_nodes,num_nodes)
 
    #build operator matrix that doesn't update with load
 
    #start building operator matrix, LHS first
-   A11 = zeros(NumberOfNodes,NumberOfNodes)
-   A12 = zeros(NumberOfNodes,NumberOfNodes)
-   A13 = zeros(NumberOfNodes,NumberOfNodes)
-   A21 = zeros(NumberOfNodes,NumberOfNodes)
-   A22 = zeros(NumberOfNodes,NumberOfNodes)
-   A23 = zeros(NumberOfNodes,NumberOfNodes)
-   A31 = zeros(NumberOfNodes,NumberOfNodes)
-   A32 = zeros(NumberOfNodes,NumberOfNodes)
-   A33 = zeros(NumberOfNodes,NumberOfNodes)
+   A11 = zeros(num_nodes,num_nodes)
+   A12 = zeros(num_nodes,num_nodes)
+   A13 = zeros(num_nodes,num_nodes)
+   A21 = zeros(num_nodes,num_nodes)
+   A22 = zeros(num_nodes,num_nodes)
+   A23 = zeros(num_nodes,num_nodes)
+   A31 = zeros(num_nodes,num_nodes)
+   A32 = zeros(num_nodes,num_nodes)
+   A33 = zeros(num_nodes,num_nodes)
 
    #calculate operator quantities on LHS  AU=B
-   for i = 1:NumberOfNodes
+   for i = 1:num_nodes
       A11[i,:] = E.*Iy.*Azzzz[i,:] .+ P .* Azz[i,:] .+kx.*AI[i,:]
       A13[i,:] = -kx.*hy.*AI[i,:]
       A22[i,:] = E.*Ix.*Azzzz[i,:] .+ P.*Azz[i,:] .+ ky.*AI[i,:]
@@ -236,21 +284,22 @@ function define(MemberDefinitions, SectionProperties, MaterialProperties, Loads,
    B3 = qx.*ay .+qy.*ax
 
    #reduce problem to free dof
-   FixedDOF = [findall(x->abs(x-Supports[i])<=10e-6,z) for i=1:length(Supports)]
-   FixedDOF = VectorOfArray(FixedDOF)
-   FixedDOF  = convert(Array,FixedDOF)
-   FreeDOF = setdiff(1:NumberOfNodes,FixedDOF)
+   fixed_dof = [findall(x->abs(x-supports[i])<=10e-6,z) for i=1:length(supports)]
+   fixed_dof = VectorOfArray(fixed_dof)
+   fixed_dof  = convert(Array,fixed_dof)
+   free_dof = setdiff(1:num_nodes,fixed_dof)
 
-   Am = [A11[FreeDOF,FreeDOF] A12[FreeDOF,FreeDOF] A13[FreeDOF,FreeDOF];
-      A21[FreeDOF,FreeDOF] A22[FreeDOF,FreeDOF] A23[FreeDOF,FreeDOF];
-      A31[FreeDOF,FreeDOF] A32[FreeDOF,FreeDOF] A33[FreeDOF,FreeDOF]]
+   K = [A11[free_dof,free_dof] A12[free_dof,free_dof] A13[free_dof,free_dof];
+      A21[free_dof,free_dof] A22[free_dof,free_dof] A23[free_dof,free_dof];
+      A31[free_dof,free_dof] A32[free_dof,free_dof] A33[free_dof,free_dof]]
 
-   Bm = [B1[FreeDOF]; B2[FreeDOF]; B3[FreeDOF]]
+   F = [B1[free_dof]; B2[free_dof]; B3[free_dof]]
 
    properties = NamedTuple{(:dm, :z, :P, :A, :Ix, :Iy, :J, :Cw, :xc, :yc, :xs, :ys, :xo, :yo, :Io, :E, :ν, :G, :ax, :ay, :kx, :ky, :kϕ, :hx, :hy, :qx, :qy)}((dm, z, P, A, Ix, Iy, J, Cw, xc, yc, xs, ys, xo, yo, Io, E, ν, G, ax, ay, kx, ky, kϕ, hx, hy, qx, qy))
 
+   model = Model(member_definitions, section_properties, material_properties, spring_stiffness, spring_location, supports, loads, load_location, end_boundary_conditions, qx, qy, P, K, F, free_dof, A, Ix, Iy, Io, J, Cw, xc, yc, xs, ys, xo, yo, E, ν, G, ax, ay, kx, ky, kϕ, hx, hy, z, dm, u, v, ϕ)
 
-   return Am, Bm, FreeDOF, properties
+   return model
 
 end
 
@@ -265,25 +314,25 @@ function residual!(R, U, K, F)
 end
 
 
-function solve(member_definitions, section_properties, material_properties, loads, springs, end_boundary_conditions, supports)
+function solve(model)
 
-   K, F, free_dof, properties = define(member_definitions, section_properties, material_properties, loads, springs, end_boundary_conditions, supports)
+   # K, F, free_dof, properties = define(member_definitions, section_properties, material_properties, loads, springs, end_boundary_conditions, supports)
 
-   num_nodes=length(properties.z)
+   num_nodes=length(model.z)
 
-   u=zeros(num_nodes)
-   v=zeros(num_nodes)
-   ϕ=zeros(num_nodes)
+   model.u=zeros(num_nodes)
+   model.v=zeros(num_nodes)
+   model.ϕ=zeros(num_nodes)
 
-   deformation_guess = K \ F    #consider revising this for large systems, it might be slow...
+   deformation_guess = model.K \ model.F    #consider revising this for large systems, it might be slow...
 
-   solution = nlsolve((R, U) ->residual!(R, U, K, F), deformation_guess)
+   solution = nlsolve((R, U) ->residual!(R, U, model.K, model.F), deformation_guess)
 
-   u[free_dof] = solution.zero[1:length(free_dof)]
-   v[free_dof] = solution.zero[length(free_dof)+1:2*length(free_dof)]
-   ϕ[free_dof] = solution.zero[2*length(free_dof)+1:3*length(free_dof)]
+   model.u[model.free_dof] = solution.zero[1:length(model.free_dof)]
+   model.v[model.free_dof] = solution.zero[length(model.free_dof)+1:2*length(model.free_dof)]
+   model.ϕ[model.free_dof] = solution.zero[2*length(model.free_dof)+1:3*length(model.free_dof)]
 
-   return u, v, ϕ, properties
+   return model
 
 end
 

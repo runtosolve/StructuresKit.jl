@@ -9,9 +9,8 @@ using TriangleMesh
 using ..Geometry
 
 export AISC, wshape_nodes,
-       assemble, Feature, Deck, surface_normals, avg_node_normals, xycoords_along_normal, create_CUFSM_node_elem,
-       discretize_feature, feature_geometry, get_xy_coordinates, area_from_cells, centroid_from_cells, moment_of_inertia_from_cells,
-       triangular_mesh_properties, mesh, SectionProperties, rectangular_tube_geometry
+       assemble, Feature, Deck, surface_normals, avg_node_normals, xycoords_along_normal, create_CUFSM_node_elem, feature_geometry, get_xy_coordinates, area_from_cells, centroid_from_cells, moment_of_inertia_from_cells,
+       triangular_mesh_properties, mesh, SectionProperties, rectangular_tube_geometry, define_w_shape_centerline_model, discretize_w_shape_centerline_model
 
 
 struct WShape
@@ -34,6 +33,14 @@ struct WShape
 
 end
 
+struct CrossSectionBranch
+
+    anchor::Tuple{Float64, Float64}
+    direction::Float64
+    magnitude::Float64
+    n::Int64
+
+end
 
 #primitive, line element defined as vector, with n segments
 struct Feature
@@ -70,7 +77,6 @@ struct Open
     feature_map::Array{Int,1}
 
 end
-
 
 #Get the node and element properties just for the flange and lip of a C or Z section.
 #This code grabs the bottom flange and lip.
@@ -109,47 +115,51 @@ function AISC(shape_name)
 
     filename = string(@__DIR__, "/assets/aisc-shapes-database-v15.0.csv")
 
-    data = CSV.read(filename, DataFrame, header=true)
+    data = CSV.File(filename)
 
     shape_row = findfirst(==(shape_name), data.AISC_Manual_Label)
-
-    section_type = data[shape_row, :Type]
-
+    
+    section_type = data.Type[shape_row]
+    
     if section_type == "W"
-
-        d = parse(Float64, data[shape_row, :d])
-        tw = parse(Float64, data[shape_row, :tw])
-        bf = parse(Float64, data[shape_row, :bf])
-        tf = parse(Float64, data[shape_row, :tf])
-        kdes = parse(Float64, data[shape_row, :kdes])
-
+    
+        d = parse(Float64, data.d[shape_row])
+        tw = parse(Float64, data.tw[shape_row])
+        bf = parse(Float64, data.bf[shape_row])
+        tf = parse(Float64, data.tf[shape_row])
+        kdes = parse(Float64, data.kdes[shape_row])
+    
         #get k1 from AISC table, it is in fraction format
-        k1 = data[shape_row, :k1]
+        k1 = data.k1[shape_row]
         index = findfirst("/", k1)
-
-        whole = Int(data[shape_row, :k1][1] - '0')
-
+    
+        if length(k1) == 7 
+            whole = Int(data.k1[shape_row][1] - '0')
+        else
+            whole = 0.0
+        end
+    
         if isempty(index) == false
-            top_fraction = parse(Float64, data[shape_row, :k1][index[1]-2:index[1]-1])
-            bottom_fraction = parse(Float64, data[shape_row, :k1][index[1]+1:index[1]+2])
+            top_fraction = parse(Float64, data.k1[shape_row][index[1]-2:index[1]-1])
+            bottom_fraction = parse(Float64, data.k1[shape_row][index[1]+1:index[1]+2])
         else
             top_fraction = 0.0
             bottom_fraction = 0.0
         end
-
+    
         k1 = whole + top_fraction/bottom_fraction
-
-        A = data[shape_row, :A]
-        Ix = data[shape_row, :Ix]
-        Iy = data[shape_row, :Iy]
-        J = parse(Float64, data[shape_row, :J])
-        Cw = parse(Float64, data[shape_row, :Cw])
-        Zx = data[shape_row, :Zx]
-        Zy = data[shape_row, :Zy]
-        Wno = parse(Float64, data[shape_row, :Wno])
-
+    
+        A = data.A[shape_row]
+        Ix = data.Ix[shape_row]
+        Iy = data.Iy[shape_row]
+        J = parse(Float64, data.J[shape_row])
+        Cw = parse(Float64, data.Cw[shape_row])
+        Zx = data.Zx[shape_row]
+        Zy = data.Zy[shape_row]
+        Wno = parse(Float64, data.Wno[shape_row])
+    
         shape_info = WShape(d, tw, bf, tf, kdes,k1, A, Ix, Iy, J, Cw, Zx, Zy, Wno)
-
+    
     end
 
     return shape_info
@@ -209,7 +219,8 @@ function wshape_nodes(shape_info, n)
     #add web flat
     web_flat = shape_info.d/2 - shape_info.tf - radius
 
-    web_flat_range = (ycoords[end] + web_flat/n[5]): web_flat/n[5]: (ycoords[end] + web_flat)
+    web_flat_range = LinRange(ycoords[end] + web_flat/n[5], (ycoords[end] + web_flat), n[5])
+    # web_flat_range = (ycoords[end] + web_flat/n[5]): web_flat/n[5]: (ycoords[end] + web_flat)
     xcoords = [xcoords; ones(n[5])*xcoords[end]]
     ycoords = [ycoords; web_flat_range]
 
@@ -233,15 +244,15 @@ function wshape_nodes(shape_info, n)
 end
 
 
-#define nodal coordinates within a feature
-function discretize_feature(feature)
+# #define nodal coordinates within a feature
+# function discretize_feature(feature)
 
-    dx = feature.Δx ./ feature.n
-    dy = feature.Δy ./ feature.n
+#     dx = feature.Δx ./ feature.n
+#     dy = feature.Δy ./ feature.n
 
-    return dx, dy
+#     return dx, dy
 
-end
+# end
 
 #define feature geometry, typically a feature is repetitive
 function feature_geometry(feature, dx, dy)
@@ -884,6 +895,139 @@ function mesh(xcoords, ycoords, mesh_size)
     return xcoords, ycoords
 
 end
+
+
+
+function discretize_w_shape_centerline_model(shape, cross_section)
+
+    num_branches = size(shape)[1]
+
+    xcoords = []
+    ycoords = []
+
+    for i = 1:num_branches
+
+        ΔL = shape[i].magnitude
+        θ = shape[i].direction
+        n = shape[i].n
+        Δxy = Geometry.vector_components(ΔL, θ) 
+        anchor = shape[i].anchor
+
+        if i == 1
+            xcoords = range(0.0, Δxy[1], length = n + 1) .+ anchor[1]
+            ycoords = range(0.0, Δxy[2], length = n + 1) .+ anchor[2]
+
+        else
+            xcoords = [xcoords; range(0.0, Δxy[1], length = n + 1) .+ anchor[1]]
+            ycoords = [ycoords; range(0.0, Δxy[2], length = n + 1) .+ anchor[2]]
+
+        end
+
+    end
+
+    #Round here to help unique function.
+    xycoords = [(round(xcoords[i], digits = 3), round(ycoords[i], digits = 3)) for i = 1:length(xcoords)]
+
+    xycoords = unique(xycoords)
+
+    coord = [y[i] for y in xycoords, i in 1:2]
+
+    #Shift coordinates so that web is centered on x=0.
+    coord[:, 1] = coord[:, 1] .- cross_section.bf/2
+
+    #Shift coordinates so that bottom fiber is at y=0.
+    coord[:, 2] = coord[:, 2] .+ cross_section.tf/2
+
+
+    #Define element connectivity.
+
+    num_elem = sum([shape[i].n for i=1:num_branches])
+    
+    node_start = 1
+    node_end = shape[1].n
+
+    node_i = node_start:node_end
+    node_j = node_i .+ 1
+
+    node_start = floor(Int, shape[1].n/2)+1
+    node_end = node_end + 2
+
+    node_i = [node_i; node_start]
+    node_j = [node_j; node_end]
+
+    node_start = node_end
+    node_end = node_end + shape[2].n - 2
+
+    node_i = [node_i; node_start:node_end]
+    node_j = [node_j; (node_start:node_end) .+ 1]
+
+    node_start = shape[1].n + shape[2].n + 2
+    node_end = node_start + floor(Int, shape[2].n/2) - 1
+    node_i_range = range(node_start, node_end-1)
+    node_j_range = node_i_range .+ 1
+
+    node_i = [node_i; node_i_range]
+    node_j = [node_j; node_j_range]
+
+    node_start = node_i[end] + 1
+    node_end = shape[1].n + shape[2].n + 1
+
+    node_i = [node_i; node_start]
+    node_j = [node_j; node_end]
+
+    node_start = node_j[end]
+    node_end = node_i[end] + 1
+
+    node_i = [node_i; node_start]
+    node_j = [node_j; node_end]
+
+    node_start = shape[1].n + shape[2].n + 2 + floor(Int, shape[3].n/2)
+    node_end = node_start + floor(Int, shape[3].n/2) - 1
+    node_i_range = range(node_start, node_end-1)
+    node_j_range = node_i_range .+ 1
+
+    node_i = [node_i; node_i_range]
+    node_j = [node_j; node_j_range]
+
+    t = [ones(Float64, shape[1].n)*cross_section.tf[1]; ones(Float64, shape[2].n)*cross_section.tw[1]; ones(Float64, shape[2].n)*cross_section.tf[1]]
+
+    ends = [node_i node_j t]
+
+    return coord, ends
+
+end
+
+
+function define_w_shape_centerline_model(bf, tf, d, n)
+
+    num_branches = 3
+    w_shape = Vector{CrossSectionBranch}(undef, num_branches)
+
+    #first branch, bottom flange
+    anchor = (0.0, 0.0)
+    direction = 0.0
+    magnitude = bf
+
+    w_shape[1] = CrossSectionBranch(anchor, direction, magnitude, n[1])
+
+    #second branch, web
+    anchor = (bf/2, 0.0)
+    direction = 90.0
+    magnitude = d - tf
+
+    w_shape[2] = CrossSectionBranch(anchor, direction, magnitude, n[2])
+
+    #third branch, top flange
+    anchor = (0.0, d - tf)
+    direction = 0.0
+    magnitude = bf
+
+    w_shape[3] = CrossSectionBranch(anchor, direction, magnitude, n[3])
+
+    return w_shape
+
+end
+
 
 
 end #module

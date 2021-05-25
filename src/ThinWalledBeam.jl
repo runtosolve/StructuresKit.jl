@@ -6,7 +6,51 @@ using NLsolve
 
 using ..Mesh
 
-export solve
+export define, solve, Model
+
+
+mutable struct Model
+
+   member_definitions::Vector{Tuple{Float64, Float64, Int64, Int64, Int64, Int64, Int64}}
+   section_properties::Vector{Tuple{Float64, Float64, Float64, Float64, Float64}}
+   material_properties::Vector{Tuple{Float64, Float64}}
+   spring_stiffness::Vector{Tuple{Float64, Float64}}
+   spring_location::Vector{Tuple{Float64}}
+   supports::Array{Float64}
+   load::Tuple{Float64, Float64}
+   load_location::Vector{Tuple{Float64, Float64}}
+   end_boundary_conditions::Array{Int64}
+
+   qx::Array{Float64}
+   qy::Array{Float64}
+
+   K::Matrix{Float64}
+   F::Array{Float64}
+
+   free_dof::Array{Int64}
+   
+   Ix::Array{Float64}
+   Iy::Array{Float64}
+   Ixy::Array{Float64}
+   J::Array{Float64}
+   Cw::Array{Float64}
+   E::Array{Float64}
+   ν::Array{Float64}
+   G::Array{Float64}
+   ax::Array{Float64}
+   ay::Array{Float64}
+   ay_kx::Array{Float64}
+   kx::Array{Float64}
+   kϕ::Array{Float64}
+
+   z::Array{Float64}
+   dm::Array{Int64}
+   
+   u::Array{Float64}
+   v::Array{Float64}
+   ϕ::Array{Float64}
+
+end
 
 
 function calculate_derivative_operators(dz)
@@ -241,13 +285,18 @@ function define(member_definitions, section_properties, material_properties, spr
    #Find free dof. 
    free_dof = setdiff(1:num_nodes,fixed_dof)
 
-   A = [A11[free_dof,free_dof] A12[free_dof,free_dof] A13[free_dof,free_dof];
+   #Define stiffness matrix.
+   K = [A11[free_dof,free_dof] A12[free_dof,free_dof] A13[free_dof,free_dof];
       A21[free_dof,free_dof] A22[free_dof,free_dof] A23[free_dof,free_dof];
       A31[free_dof,free_dof] A32[free_dof,free_dof] A33[free_dof,free_dof]]
 
-   B = [B1[free_dof]; B2[free_dof]; B3[free_dof]]
+   #Define external force vector.
+   F = [B1[free_dof]; B2[free_dof]; B3[free_dof]]
 
-   return A, B, free_dof, Ix, Iy, Ixy, J, Cw, E, ν, G, ax, ay, ay_kx, kx, kϕ, z, dm
+   #Add definitions to data structure.
+   model = Model(member_definitions,  section_properties, material_properties, spring_stiffness, spring_location, supports, load, load_location, end_boundary_conditions, qx, qy, K,  F, free_dof, Ix, Iy, Ixy, J, Cw, E, ν, G, ax, ay, ay_kx, kx, kϕ, z, dm, [], [], [])
+  
+   return model
 
 end
 
@@ -262,13 +311,13 @@ function residual!(R, U, K, F)
 end
 
 
-function solve(member_definitions, section_properties, material_properties, spring_stiffness, spring_location, supports, load, load_location, end_boundary_conditions)
+function solve(model)
 
-   #Set up the beam problem, including the stiffness matrix and external force vector.
-   K, F, free_dof, Ix, Iy, Ixy, J, Cw, E, ν, G, ax, ay, ay_kx, kx, kϕ, z, dm = define(member_definitions, section_properties, material_properties, spring_stiffness, spring_location, supports, load, load_location, end_boundary_conditions)
+   # #Set up the beam problem, including the stiffness matrix and external force vector.
+   # K, F, free_dof, Ix, Iy, Ixy, J, Cw, E, ν, G, ax, ay, ay_kx, kx, kϕ, z, dm = define(member_definitions, section_properties, material_properties, spring_stiffness, spring_location, supports, load, load_location, end_boundary_conditions)
 
    #Define the number of nodes along the beam.
-   num_nodes = length(z)
+   num_nodes = length(model.z)
 
    #Define the deformation vectors.
    u = zeros(num_nodes)
@@ -276,20 +325,22 @@ function solve(member_definitions, section_properties, material_properties, spri
    ϕ = zeros(num_nodes)
 
    #Define the deformation initial guess for the nonlinear solver.
-   u_guess = K \ F
+   u_guess = model.K \ model.F
 
    #Solve for the beam deformations.
-   solution = nlsolve((R,U) ->residual!(R, U, K, F), u_guess)
+   solution = nlsolve((R,U) ->residual!(R, U, model.K, model.F), u_guess)
 
    #Pull the displacements and twist from the solution results.
-   u[free_dof] = solution.zero[1:length(free_dof)]
-   v[free_dof] = solution.zero[length(free_dof)+1:2*length(free_dof)]
-   ϕ[free_dof] = solution.zero[2*length(free_dof)+1:3*length(free_dof)]
+   u[model.free_dof] = solution.zero[1:length(model.free_dof)]
+   v[model.free_dof] = solution.zero[length(model.free_dof)+1:2*length(model.free_dof)]
+   ϕ[model.free_dof] = solution.zero[2*length(model.free_dof)+1:3*length(model.free_dof)]
 
-   #Wrap up all the beam properties as output.
-   properties = NamedTuple{(:dm, :Ix, :Iy, :Ixy, :J, :Cw, :E, :ν, :G, :ax, :ay, :ay_kx, :kx, :kϕ)}((dm, Ix, Iy, Ixy, J, Cw, E, ν, G, ax, ay, ay_kx, kx, kϕ))
+   #Add deformations to data structure.
+   model.u = u
+   model.v = v
+   model.ϕ = ϕ
 
-   return z, u, v, ϕ, properties
+   return model
 
 end
 
