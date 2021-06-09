@@ -17,8 +17,8 @@ mutable struct Model
    spring_stiffness::Vector{Tuple{Float64, Float64}}
    spring_location::Vector{Tuple{Float64}}
    supports::Array{Float64}
-   load::Tuple{Float64, Float64}
-   load_location::Vector{Tuple{Float64, Float64}}
+   loads::Vector{Vector{Float64}}
+   load_location::Vector{Vector{Float64}}
    end_boundary_conditions::Array{Int64}
 
    qx::Array{Float64}
@@ -44,11 +44,14 @@ mutable struct Model
    kϕ::Array{Float64}
 
    z::Array{Float64}
+   dz::Array{Float64}
    dm::Array{Int64}
    
    u::Array{Float64}
    v::Array{Float64}
    ϕ::Array{Float64}
+
+   Model() = new()
 
 end
 
@@ -190,7 +193,7 @@ function apply_end_boundary_conditions(A, end_boundary_conditions, nth_derivativ
 end
 
 
-function define(member_definitions, section_properties, material_properties, spring_stiffness, spring_location, supports, load, load_location, end_boundary_conditions)
+function define(member_definitions, section_properties, material_properties, spring_stiffness, spring_location, supports, loads, load_location, end_boundary_conditions)
 
    #Define discretization along beam and assign a member type to each segment, i.e., dm.
    dz, z, dm = Mesh.define_line_element(member_definitions)
@@ -209,13 +212,14 @@ function define(member_definitions, section_properties, material_properties, spr
    ν = Mesh.create_line_element_property_array(member_definitions, dm, dz, material_properties, 4, 2)
    G = E./(2 .*(1 .+ ν))
 
-   ax = Mesh.create_line_element_property_array(member_definitions, dm, dz, load_location, 5, 1)
-   ay = Mesh.create_line_element_property_array(member_definitions, dm, dz, load_location, 5, 2)
+   # kx = Mesh.create_line_element_property_array(member_definitions, dm, dz, spring_stiffness, 6, 1)
+   # kϕ = Mesh.create_line_element_property_array(member_definitions, dm, dz, spring_stiffness, 6, 2)
+   # ay_kx = Mesh.create_line_element_property_array(member_definitions, dm, dz, spring_location, 7, 1)
 
-   kx = Mesh.create_line_element_property_array(member_definitions, dm, dz, spring_stiffness, 6, 1)
-   kϕ = Mesh.create_line_element_property_array(member_definitions, dm, dz, spring_stiffness, 6, 2)
+   kx = spring_stiffness[1]
+   kϕ = spring_stiffness[2]
 
-   ay_kx = Mesh.create_line_element_property_array(member_definitions, dm, dz, spring_location, 7, 1)
+   ay_kx = spring_location
 
    #Calculate the derivative operators. 
    Azzzz,Azz = calculate_derivative_operators(dz) 
@@ -227,9 +231,13 @@ function define(member_definitions, section_properties, material_properties, spr
    nth_derivative = 2
    Azz = apply_end_boundary_conditions(Azz, end_boundary_conditions, nth_derivative, dz)
 
-   #Assign a uniform load magnitude at each node.   Consider updating this to accommodate pattern and point loads in the future.
-   qx = load[1].*ones(num_nodes)
-   qy = load[2].*ones(num_nodes)
+   #Assign a uniform load magnitude at each node.  
+   qx = loads[1]
+   qy = loads[2]
+
+   #Assign load location on the cross-section at each node.
+   ax = load_location[1]
+   ay = load_location[2]
 
    #Build identity matrix for ODE operations.
    AI = Matrix(1.0I, num_nodes, num_nodes)
@@ -294,7 +302,7 @@ function define(member_definitions, section_properties, material_properties, spr
    F = [B1[free_dof]; B2[free_dof]; B3[free_dof]]
 
    #Add definitions to data structure.
-   model = Model(member_definitions,  section_properties, material_properties, spring_stiffness, spring_location, supports, load, load_location, end_boundary_conditions, qx, qy, K,  F, free_dof, Ix, Iy, Ixy, J, Cw, E, ν, G, ax, ay, ay_kx, kx, kϕ, z, dm, [], [], [])
+   model = Model(member_definitions, section_properties, material_properties, spring_stiffness, spring_location, supports, loads, load_location, end_boundary_conditions, qx, qy, K,  F, free_dof, Ix, Iy, Ixy, J, Cw, E, ν, G, ax, ay, ay_kx, kx, kϕ, z, dm, [], [], [])
   
    return model
 

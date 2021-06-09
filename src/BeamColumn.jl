@@ -228,12 +228,13 @@ function define(member_definitions, section_properties, material_properties, loa
    ν = Mesh.create_line_element_property_array(member_definitions, dm, dz, material_properties, 4, 2)
    G = E./(2 .*(1 .+ ν))
 
-   kx = spring_stiffness[1]
-   ky = spring_stiffness[2]
-   kϕ = spring_stiffness[3]
 
-   hx = spring_location[1]
-   hy = spring_location[2]
+   kx = springs[1]
+   ky = springs[2]
+   kϕ = springs[3]
+
+   hx = springs[4]
+   hy = springs[5]
 
    Azzzz,Azz = calculate_derivative_operators(dz) #calculate derivative operators
 
@@ -248,8 +249,8 @@ function define(member_definitions, section_properties, material_properties, loa
    P =  loads[1]
    qx = loads[2]
    qy = loads[3]
-   ax = load_location[1]
-   ay = load_location[2]
+   ax = loads[4]
+   ay = loads[5]
 
    #build identity matrix for ODE operations
    AI = Matrix(1.0I,num_nodes,num_nodes)
