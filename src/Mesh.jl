@@ -122,11 +122,11 @@ Accepts the `member_definitions` tuple, property array 'dm' assigning a property
 function create_line_element_property_array(member_definitions, dm, dz, property, property_order, property_type)
 
 
-   z = [0; cumsum(dz)]
+   z = [0.0; cumsum(dz)]
 
    num_nodes = length(dm)
 
-   property_array = zeros( num_nodes)
+   property_array = zeros(num_nodes)
 
    for i=1:num_nodes
       property_index = member_definitions[dm[i]][property_order]  #maps properties to each segment along a line element

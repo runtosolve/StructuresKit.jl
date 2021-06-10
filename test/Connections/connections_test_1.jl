@@ -1,4 +1,20 @@
 #Put your code here Sangchu.  
+
+using CSV, DataFrames
+
+#Import monotonic data from CSV file.
+data = CSV.File("/Users/crismoen/.julia/dev/StructuresKit/src/assets/Connections/Zhang_2020_steel_steel_screw_monotonic.csv")
+
+#Interpolation
+
+
+
+
+
+
+
+
+
 import XLSX
 
 # Read fitst lab data Excel file. Please change the path if necessary
