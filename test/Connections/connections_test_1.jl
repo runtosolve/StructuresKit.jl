@@ -143,23 +143,100 @@ using CSV
 using Plots
 
 # Load the CSV file. Please change the path if necessary
-el = DataFrame(CSV.File("D:/JHU Spring 2021/Fastener Testing Data_Zhidong/Trail1/Mon.csv"))
+el = DataFrame(CSV.File("D:/JHU Spring 2021/Fastener Testing Data_Zhidong/Trail1/Mon (2).csv"))
 
 # Convert the already read CSV file into array
 df_matrix = Matrix(el)
 
+# test_54_8
+test_54_8_t1 = convert(Array, df_matrix[2:4,10])
+test_54_8_t2 = convert(Array, df_matrix[2:4,11])
+test_54_8_Fy1 = convert(Array, df_matrix[2:4,12])
+test_54_8_Fy2 = convert(Array, df_matrix[2:4,13])
+test_54_8_Fu1 = convert(Array, df_matrix[2:4,14])
+test_54_8_Fu2 = convert(Array, df_matrix[2:4,15])
+test_54_8_screw = convert(Array, df_matrix[2:4,16])
+test_54_8_thickness = convert(Array, df_matrix[1:3,17])
+
+using Dierckx
+test_54_8_t1_int = Spline1D(test_54_8_thickness,test_54_8_t1,k=2)
+test_54_8_t2_int = Spline1D(test_54_8_thickness,test_54_8_t2,k=2)
+test_54_8_Fy1_int = Spline1D(test_54_8_thickness,test_54_8_Fy1,k=2)
+test_54_8_Fy2_int = Spline1D(test_54_8_thickness,test_54_8_Fy2,k=2)
+test_54_8_Fu1_int = Spline1D(test_54_8_thickness,test_54_8_Fu1,k=2)
+test_54_8_Fu2_int = Spline1D(test_54_8_thickness,test_54_8_Fu2,k=2)
+
+
+# test_54_10
+test_54_10_t1 = convert(Array, df_matrix[5:7,10])
+test_54_10_t2 = convert(Array, df_matrix[5:7,11])
+test_54_10_Fy1 = convert(Array, df_matrix[5:7,12])
+test_54_10_Fy2 = convert(Array, df_matrix[5:7,13])
+test_54_10_Fu1 = convert(Array, df_matrix[5:7,14])
+test_54_10_Fu2 = convert(Array, df_matrix[5:7,15])
+test_54_10_screw = convert(Array, df_matrix[5:7,16])
+test_54_10_thickness = convert(Array, df_matrix[1:3,17])
+
+using Dierckx
+test_54_10_t1_int = Spline1D(test_54_10_thickness,test_54_10_t1,k=2)
+test_54_10_t2_int = Spline1D(test_54_10_thickness,test_54_10_t2,k=2)
+test_54_10_Fy1_int = Spline1D(test_54_10_thickness,test_54_10_Fy1,k=2)
+test_54_10_Fy2_int = Spline1D(test_54_10_thickness,test_54_10_Fy2,k=2)
+test_54_10_Fu1_int = Spline1D(test_54_10_thickness,test_54_10_Fu1,k=2)
+test_54_10_Fu2_int = Spline1D(test_54_10_thickness,test_54_10_Fu2,k=2)
+
+# test_97_10
+test_97_10_t1 = convert(Array, df_matrix[13:15,10])
+test_97_10_t2 = convert(Array, df_matrix[13:15,11])
+test_97_10_Fy1 = convert(Array, df_matrix[13:15,12])
+test_97_10_Fy2 = convert(Array, df_matrix[13:15,13])
+test_97_10_Fu1 = convert(Array, df_matrix[13:15,14])
+test_97_10_Fu2 = convert(Array, df_matrix[13:15,15])
+test_97_10_screw = convert(Array, df_matrix[13:15,16])
+test_97_10_thickness = convert(Array, df_matrix[1:3,17])
+
+using Dierckx
+test_97_10_t1_int = Spline1D(test_97_10_thickness,test_97_10_t1,k=2)
+test_97_10_t2_int = Spline1D(test_97_10_thickness,test_97_10_t2,k=2)
+test_97_10_Fy1_int = Spline1D(test_97_10_thickness,test_97_10_Fy1,k=2)
+test_97_10_Fy2_int = Spline1D(test_97_10_thickness,test_97_10_Fy2,k=2)
+test_97_10_Fu1_int = Spline1D(test_97_10_thickness,test_97_10_Fu1,k=2)
+test_97_10_Fu2_int = Spline1D(test_97_10_thickness,test_97_10_Fu2,k=2)
+
+# test_97_xx_30
+test_97_xx_30_t1 = convert(Array, df_matrix[15:17,10])
+test_97_xx_30_t2 = convert(Array, df_matrix[15:17,11])
+test_97_xx_30_Fy1 = convert(Array, df_matrix[15:17,12])
+test_97_xx_30_Fy2 = convert(Array, df_matrix[15:17,13])
+test_97_xx_30_Fu1 = convert(Array, df_matrix[15:17,14])
+test_97_xx_30_Fu2 = convert(Array, df_matrix[15:17,15])
+test_97_xx_30_screw = convert(Array, df_matrix[15:17,16])
+test_97_xx_30_thickness = convert(Array, df_matrix[4:6,17])
+
+using Dierckx
+test_97_xx_30_int = Spline1D(test_97_xx_30_thickness,test_97_xx_30_t1,k=2)
+test_97_xx_30_int = Spline1D(test_97_xx_30_thickness,test_97_xx_30_t2,k=2)
+test_97_xx_30_int = Spline1D(test_97_xx_30_thickness,test_97_xx_30_Fy1,k=2)
+test_97_xx_30_int = Spline1D(test_97_xx_30_thickness,test_97_xx_30_Fy2,k=2)
+test_97_xx_30_int = Spline1D(test_97_xx_30_thickness,test_97_xx_30_Fu1,k=2)
+test_97_xx_30_int = Spline1D(test_97_xx_30_thickness,test_97_xx_30_Fu2,k=2)
+
 # Visualize the chosen node
-for i in 1:size(df_matrix,1)
+
+ for i in 1:size(df_matrix,1)
 
     # Load the 4 node's displacement and force
     F = df_matrix[i,6:9]
     D = df_matrix[i,2:5]
-    #
+
     name = df_matrix[i,1]
 
     df = DataFrame(force = F, displacement = D)
     plot(D,F)
     Plots.display(plot(D,F,color ="red",title = name,xlabel = "disp",ylabel = "force"))
     sleep(1)
-    println(i)
+
+    using Dierckx
+    sp1 = Spline1D(D,F)
+
 end
