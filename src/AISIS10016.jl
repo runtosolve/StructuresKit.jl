@@ -157,7 +157,9 @@ end
 function table_g53()
 
     filename = string(@__DIR__, "/assets/AISI_S100_16_Table_G5_3.csv")
-    table = DataFrame(CSV.File(filename))
+    data = CSV.File(filename)
+
+    table = DataFrame(support_condition = Vector(data.support_condition), flange_condition = Vector(data.flange_condition), load_case = Vector(data.load_case), load_location=Vector(data.load_location), C=Vector(data.C), C_R = Vector(data.C_R), C_N = Vector(data.C_N), C_h = Vector(data.C_h), ASD = Vector(data.ASD), LRFD = Vector(data.LRFD), LSD = Vector(data.LSD), limits = Vector(data.limits))
 
     return table
 
@@ -181,6 +183,51 @@ function h121(Pbar, Mxbar, Mybar, Pa, Max, May)
     return ActionP, ActionMx, ActionMy, Interaction
 
 end
+
+function h31(Pbar, Mbar, Pn, Mnℓo, design_code)
+
+    actionP = 0.91 * (Pbar/Pn)
+    actionM = Mbar / Mnℓo
+    interaction = actionP + actionM
+
+    Ω = 1.70
+    ϕ_LRFD = 0.95
+    ϕ_LSD = 0.75
+
+    if design_code == "AISI S100-16 ASD"
+        DC = interaction / (1.33/Ω)
+    elseif design_code == "AISI S100-16 LRFD"
+        DC = interaction / (1.33*ϕ_LRFD)
+    elseif design_code == "AISI S100-16 LSD"
+        DC = interaction / (1.33*ϕ_LSD)
+    end
+
+    return actionP, actionM, interaction, DC
+
+end
+
+function h33(Pbar, Mbar, Pn, Mnℓo, design_code)
+
+    actionP = 0.86 * (Pbar/Pn)
+    actionM = Mbar / Mnℓo
+    interaction = actionP + actionM
+
+    Ω = 1.70
+    ϕ_LRFD = 0.90
+    ϕ_LSD = 0.80
+
+    if design_code == "AISI S100-16 ASD"
+        DC = interaction / (1.65/Ω)
+    elseif design_code == "AISI S100-16 LRFD"
+        DC = interaction / (1.65*ϕ_LRFD)
+    elseif design_code == "AISI S100-16 LSD"
+        DC = interaction / (1.65*ϕ_LSD)
+    end
+
+    return actionP, actionM, interaction, DC
+
+end
+
 
 function table23131(CorZ,t,b,d,θ)
 

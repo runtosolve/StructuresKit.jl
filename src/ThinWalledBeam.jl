@@ -6,7 +6,7 @@ using NLsolve
 
 using ..Mesh
 
-export user_interface, define, solve, Model
+export discretize, define, solve, Model
 
 
 Base.@kwdef mutable struct Model   #using Parameters.jl macro here to help assign some constants, leave others for later.
@@ -32,8 +32,7 @@ Base.@kwdef mutable struct Model   #using Parameters.jl macro here to help assig
    supports::Union{Array{Float64}, Nothing} = nothing
 
    z::Union{Array{Float64}, Nothing} = nothing
-   dz::Union{Array{Float64}, Nothing} = nothing
-   dm::Union{Array{Int64}, Nothing} = nothing
+   m::Union{Array{Int64}, Nothing} = nothing
 
    K::Union{Matrix{Float64}, Nothing} = nothing  
    F::Union{Array{Float64}, Nothing} = nothing
@@ -183,65 +182,55 @@ function apply_end_boundary_conditions(A, end_boundary_conditions, nth_derivativ
 
 end
 
-function user_interface(member_definitions, section_properties, material_properties, spring_stiffness, spring_location, loads, load_locations, end_boundary_conditions, supports)
+function discretize(member_definitions)
 
-   #Define discretization along beam and assign a member type to each segment, i.e., dm.
-   dz, z, dm = Mesh.define_line_element(member_definitions)
+      #Define discretization along beam (z) and assign a member type to each node (m).
+      dz, z, m = Mesh.define_line_element(member_definitions)
 
-   #Define the number of nodes along the beam.
-   num_nodes=length(dz)+1
+      return z, m
+
+end
+
+function define(z, m, member_definitions, section_properties, material_properties, kx, kϕ, ay_kx, qx, qy, ax, ay, end_boundary_conditions, supports)
 
    #This is the user interface mapping.
-   #L(1) dL(2) section_properties(3) material_properties(4) spring_stiffness(5) spring_location(6) load(7) load_location(8) 
+   #L(1) dL(2) section_properties(3) material_properties(4)
 
    #Define properties at each node.
-   Ix = Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 1)
-   Iy = Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 2)
-   Ixy = Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 3)
-   J = Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 4)
-   Cw = Mesh.create_line_element_property_array(member_definitions, dm, dz, section_properties, 3, 5)
+   dz = diff(z)
+   Ix = Mesh.create_line_element_property_array(member_definitions, m, dz, section_properties, 3, 1)
+   Iy = Mesh.create_line_element_property_array(member_definitions, m, dz, section_properties, 3, 2)
+   Ixy = Mesh.create_line_element_property_array(member_definitions, m, dz, section_properties, 3, 3)
+   J = Mesh.create_line_element_property_array(member_definitions, m, dz, section_properties, 3, 4)
+   Cw = Mesh.create_line_element_property_array(member_definitions, m, dz, section_properties, 3, 5)
 
-   E = Mesh.create_line_element_property_array(member_definitions, dm, dz, material_properties, 4, 1)
-   ν = Mesh.create_line_element_property_array(member_definitions, dm, dz, material_properties, 4, 2)
+   E = Mesh.create_line_element_property_array(member_definitions, m, dz, material_properties, 4, 1)
+   ν = Mesh.create_line_element_property_array(member_definitions, m, dz, material_properties, 4, 2)
    G = E./(2 .*(1 .+ ν))
 
-   kx = Mesh.create_line_element_property_array(member_definitions, dm, dz, spring_stiffness, 5, 1)
-   kϕ = Mesh.create_line_element_property_array(member_definitions, dm, dz, spring_stiffness, 5, 2)
-
-   ay_kx = Mesh.create_line_element_property_array(member_definitions, dm, dz, spring_location, 6, 1)
-
-   #Assign a uniform load magnitude at each node.  
-   qx = Mesh.create_line_element_property_array(member_definitions, dm, dz, loads, 7, 1)
-   qy = Mesh.create_line_element_property_array(member_definitions, dm, dz, loads, 7, 2)
-
-   #Assign load location on the cross-section at each node.
-   ax = Mesh.create_line_element_property_array(member_definitions, dm, dz, load_locations, 8, 1)
-   ay = Mesh.create_line_element_property_array(member_definitions, dm, dz, load_locations, 8, 2)
-
    #Store model inputs in data structure.
-   model = Model(Ix, Iy, Ixy, J, Cw, E, ν, G, ax, ay, ay_kx, kx, kϕ, qx, qy, end_boundary_conditions, supports, z, dz, dm, nothing, nothing, nothing, nothing, nothing, nothing)
+   model = Model(Ix, Iy, Ixy, J, Cw, E, ν, G, ax, ay, ay_kx, kx, kϕ, qx, qy, end_boundary_conditions, supports, z, m, nothing, nothing, nothing, nothing, nothing, nothing)
   
    return model
 
 end
 
 
-
-
-function define(model)
+function governing_equations(model)
 
    #Define the number of nodes.
    num_nodes = length(model.z)
 
-   #Calculate the derivative operators. 
-   Azzzz,Azz = calculate_derivative_operators(model.dz) 
+   #Calculate the derivative operators.
+   dz = diff(model.z) 
+   Azzzz,Azz = calculate_derivative_operators(dz) 
 
    #Apply left and right end boundary condition stencils to derivative operators.
    nth_derivative = 4
-   Azzzz = apply_end_boundary_conditions(Azzzz, model.end_boundary_conditions, nth_derivative, model.dz)
+   Azzzz = apply_end_boundary_conditions(Azzzz, model.end_boundary_conditions, nth_derivative, dz)
 
    nth_derivative = 2
-   Azz = apply_end_boundary_conditions(Azz, model.end_boundary_conditions, nth_derivative, model.dz)
+   Azz = apply_end_boundary_conditions(Azz, model.end_boundary_conditions, nth_derivative, dz)
 
    #Build identity matrix for ODE operations.
    AI = Matrix(1.0I, num_nodes, num_nodes)
@@ -321,6 +310,9 @@ end
 
 
 function solve(model)
+
+   #Set up solution matrices from governing equations.
+   model = governing_equations(model)
 
    #Define the number of nodes along the beam.
    num_nodes = length(model.z)
