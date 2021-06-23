@@ -34,8 +34,10 @@ Base.@kwdef mutable struct Model   #using Parameters.jl macro here to help assig
    z::Union{Array{Float64}, Nothing} = nothing
    m::Union{Array{Int64}, Nothing} = nothing
 
-   K::Union{Matrix{Float64}, Nothing} = nothing  
-   F::Union{Array{Float64}, Nothing} = nothing
+   Kff::Union{Matrix{Float64}, Nothing} = nothing 
+   # Ksf::Union{Matrix{Float64}, Nothing} = nothing  
+   Ff::Union{Array{Float64}, Nothing} = nothing
+   # Fs::Union{Array{Float64}, Nothing} = nothing
 
    free_dof::Union{Array{Int64}, Nothing} = nothing
    
@@ -286,13 +288,18 @@ function governing_equations(model)
    #Find free dof. 
    model.free_dof = setdiff(1:num_nodes,fixed_dof)
 
-   #Define stiffness matrix.
-   model.K = [A11[model.free_dof,model.free_dof] A12[model.free_dof,model.free_dof] A13[model.free_dof,model.free_dof];
+   #Partition stiffness matrix.
+   model.Kff = [A11[model.free_dof,model.free_dof] A12[model.free_dof,model.free_dof] A13[model.free_dof,model.free_dof];
       A21[model.free_dof,model.free_dof] A22[model.free_dof,model.free_dof] A23[model.free_dof,model.free_dof];
       A31[model.free_dof,model.free_dof] A32[model.free_dof,model.free_dof] A33[model.free_dof,model.free_dof]]
 
+   # model.Ksf = [A11[fixed_dof,model.free_dof] A12[fixed_dof,model.free_dof] A13[fixed_dof,model.free_dof];
+   # A21[fixed_dof,model.free_dof] A22[fixed_dof,model.free_dof] A23[fixed_dof,model.free_dof];
+   # A31[fixed_dof,model.free_dof] A32[fixed_dof,model.free_dof] A33[fixed_dof,model.free_dof]]
+
+
    #Define external force vector.
-   model.F = [B1[model.free_dof]; B2[model.free_dof]; B3[model.free_dof]]
+   model.Ff = [B1[model.free_dof]; B2[model.free_dof]; B3[model.free_dof]]
 
    return model
 
@@ -318,15 +325,15 @@ function solve(model)
    num_nodes = length(model.z)
 
    #Define the deformation vectors.
-   u = zeros(num_nodes)
-   v = zeros(num_nodes)
-   ϕ = zeros(num_nodes)
+   u = zeros(Float64, num_nodes)
+   v = zeros(Float64, num_nodes)
+   ϕ = zeros(Float64, num_nodes)
 
    #Define the deformation initial guess for the nonlinear solver.
-   u_guess = model.K \ model.F
+   deformation_guess = model.Kff \ model.Ff
 
    #Solve for the beam deformations.
-   solution = nlsolve((R,U) ->residual!(R, U, model.K, model.F), u_guess)
+   solution = nlsolve((R,U) ->residual!(R, U, model.Kff, model.Ff), deformation_guess)
 
    #Pull the displacements and twist from the solution results.
    u[model.free_dof] = solution.zero[1:length(model.free_dof)]
@@ -337,6 +344,9 @@ function solve(model)
    model.u = u
    model.v = v
    model.ϕ = ϕ
+
+   # #Calculate reactions.
+   # model.Fs = model.Ksf * solution.zero
 
    return model
 

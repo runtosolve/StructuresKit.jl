@@ -42,7 +42,7 @@ Base.@kwdef mutable struct Model
    supports::Union{Array{Float64}, Nothing} = nothing
 
    z::Union{Array{Float64}, Nothing} = nothing
-   dm::Union{Array{Int64}, Nothing} = nothing
+   m::Union{Array{Int64}, Nothing} = nothing
 
    K::Union{Matrix{Float64}, Nothing} = nothing  
    F::Union{Array{Float64}, Nothing} = nothing
