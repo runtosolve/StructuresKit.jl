@@ -1,3 +1,0 @@
-# BeamColumn
-
-Coming soon...

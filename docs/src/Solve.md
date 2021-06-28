@@ -1,3 +1,0 @@
-# Solve
-
-Coming soon...

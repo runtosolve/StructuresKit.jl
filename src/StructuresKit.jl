@@ -48,9 +48,9 @@ export ThinWalledBeam
 include("ThinWalledBeam.jl")
 using .ThinWalledBeam
 
-export Column
-include("Column.jl")
-using .Column
+# export Column
+# include("Column.jl")
+# using .Column
 
 export BeamColumn
 include("BeamColumn.jl")
