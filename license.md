@@ -1,6 +1,6 @@
 License
 
-Copyright (2019): Cristopher D. Moen (Author)
+Copyright (2021): Cristopher D. Moen (Author)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software (the “User”), including any and all
 associated documentation files (collectively, and together with any derivatives based on this software, the "Software"), to deal in the
