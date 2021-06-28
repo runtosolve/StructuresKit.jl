@@ -14,7 +14,7 @@ struct data
     elem::Matrix{Float64}
     lengths::Array{Float64}
     springs::Matrix{Float64}
-    constraints::Int64
+    constraints::Union{Matrix{Float64}, Int64}
     neigs::Int64
     curve::Vector{Matrix{Float64}}
     shapes::Vector{Matrix{Float64}}
@@ -1477,7 +1477,7 @@ function constr_BCFlag(node,constraints)
         end
     end
     #Check for user defined constraints too
-    if (isempty(constraints) | constraints==0) & (BCFlag==0)
+    if (isempty(constraints) || constraints==0) & (BCFlag==0)
         BCFlag=0
     else
         BCFlag=1
@@ -1508,12 +1508,13 @@ function constr_user(node,cnstr,m_a)
 
     nnode=length(node[:,1])
     ndof_m=4*nnode
-    DOFreg=zeros(ndof_m,1)+1
+    DOFreg=zeros(ndof_m,1) .+ 1
     totalm = length(m_a); #Total number of longitudinal terms m
     # Ruser=I
+    Ruser = Matrix(1.0I, ndof_m * length(m_a), ndof_m * length(m_a))  #CDM I think this is correct. 
     for ml=1:totalm
         #
-        Ruser_m=I
+        Ruser_m= Matrix(1.0I, ndof_m, ndof_m)
         #to consider free DOFs
         for i=1:nnode
             for j=4:7
@@ -1540,32 +1541,32 @@ function constr_user(node,cnstr,m_a)
             if length(cnstr[i,:])>=5
                 #
                 #nr of eliminated DOF
-                nodee=cnstr[i,1]
-                if cnstr[i,2]==1
+                nodee=Int(cnstr[i,1])
+                if Int(cnstr[i,2])==1
                     dofe=(nodee-1)*2+1
                 end
-                if cnstr[i,2]==3
+                if Int(cnstr[i,2])==3
                     dofe=nodee*2
                 end
-                if cnstr[i,2]==2
+                if Int(cnstr[i,2])==2
                     dofe=nnode*2+(nodee-1)*2+1
                 end
-                if cnstr[i,2]==4
+                if Int(cnstr[i,2])==4
                     dofe=nnode*2+nodee*2
                 end
                 #
                 #nr of kept DOF
-                nodek=cnstr[i,4]
-                if cnstr[i,5]==1
+                nodek=Int(cnstr[i,4])
+                if Int(cnstr[i,5])==1
                     dofk=(nodek-1)*2+1
                 end
-                if cnstr[i,5]==3
+                if Int(cnstr[i,5])==3
                     dofk=nodek*2
                 end
-                if cnstr[i,5]==2
+                if Int(cnstr[i,5])==2
                     dofk=nnode*2+(nodek-1)*2+1
                 end
-                if cnstr[i,5]==4
+                if Int(cnstr[i,5])==4
                     dofk=nnode*2+nodek*2
                 end
                 #
@@ -1577,6 +1578,7 @@ function constr_user(node,cnstr,m_a)
         #
         #to eliminate columns from Ruser
         k=0
+        Ru = zeros(Float64, (ndof_m, ndof_m))  #CDM I think this is correct.  Could also be the identity matrix.
         for i=1:ndof_m
             if DOFreg[i,1]==1
                 k=k+1
@@ -1585,7 +1587,7 @@ function constr_user(node,cnstr,m_a)
         end
         Ruser_m=[]
         Ruser_m=Ru[:,1:k]
-        Ruser[(ml-1)*ndof_m+1:ml*ndof_m,(ml-1)*k+1:ml*k]=Ruser_m
+        Ruser[(ml-1)*ndof_m+1:ml*ndof_m,(ml-1)*k+1:ml*k] .= Ruser_m
     end
 
     return Ruser
@@ -1988,16 +1990,20 @@ function strip(prop,node,elem,lengths,springs,constraints,neigs)
 
         #CLEAN UP THE EIGEN SOLUTION
         #find all the positive eigenvalues & corresponding vectors; squeeze out the rest
-        index=findall(x->x>0, lf)
+
+        #CDM  move this here to clean imaginary parts first.
+        #only the real part is of interest [eigensolver may give some small nonzero imaginary parts]
+        lf=real.(lf)
+        modes=real.(modes)
+
+        index=findall(x->x>0, lf)  
         lf=lf[index]
         modes=modes[:,index]
         #sort from small to large
         lf=sort(lf)
         index = sortperm(lf)
         modes=modes[:,index]
-        #only the real part is of interest [eigensolver may give some small nonzero imaginary parts]
-        lf=real.(lf)
-        modes=real.(modes)
+
         #
         #truncate down to reasonable number of modes to be kept
         num_pos_modes=length(lf)
