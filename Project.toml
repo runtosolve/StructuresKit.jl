@@ -1,7 +1,7 @@
 name = "StructuresKit"
 uuid = "f6c18a9d-8941-4a0a-88a3-c5fc4dcc4715"
 authors = ["Cris Moen"]
-version = "0.2.0"
+version = "0.2.5"
 
 [deps]
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
