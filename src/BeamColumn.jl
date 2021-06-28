@@ -2,7 +2,6 @@ module BeamColumn
 
 using DiffEqOperators: CenteredDifference
 using LinearAlgebra
-using RecursiveArrayTools: VectorOfArray
 using NLsolve
 
 using ..Mesh

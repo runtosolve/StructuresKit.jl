@@ -1,6 +1,6 @@
 module Mesh
 
-using Triangle
+# using Triangle
 
 export define_line_element, create_line_element_property_vector, extrude_nodes, extrude_elements, open_cross_section_tessellation, surface,
    calculate_weights
@@ -233,30 +233,30 @@ function extrude_elements(num_cross_section_nodes, num_cross_section_elements, n
 
 end
 
-"""
-   open_cross_section_tessellation(x, y)
+# """
+#    open_cross_section_tessellation(x, y)
 
-Accepts `x` and `y` coordinates for an open cross-section and determines a through-thickness triangular mesh `shape_mesh`.  The Array `cross_section_edges = [node(i) node(j)]` is also output, providing the nodal connectivity that describes the cross-section boundary.
+# Accepts `x` and `y` coordinates for an open cross-section and determines a through-thickness triangular mesh `shape_mesh`.  The Array `cross_section_edges = [node(i) node(j)]` is also output, providing the nodal connectivity that describes the cross-section boundary.
 
-"""
+# """
 
-function open_cross_section_tessellation(x, y)
+# function open_cross_section_tessellation(x, y)
 
-    #define cross-section edges
-    cross_section_edges = zeros(Int, length(x), 2)
-    for i = 1:length(x) - 1
-        cross_section_edges[i, 1] = i
-        cross_section_edges[i, 2] = i + 1 
-    end
-    cross_section_edges[end, :] = [length(x) 1]  #for open cross-section only
+#     #define cross-section edges
+#     cross_section_edges = zeros(Int, length(x), 2)
+#     for i = 1:length(x) - 1
+#         cross_section_edges[i, 1] = i
+#         cross_section_edges[i, 2] = i + 1 
+#     end
+#     cross_section_edges[end, :] = [length(x) 1]  #for open cross-section only
   
-    points = [x y]
-    points_map = [i for i=1:length(x)]
-    shape_mesh = Triangle.constrained_triangulation(points, points_map, cross_section_edges)
+#     points = [x y]
+#     points_map = [i for i=1:length(x)]
+#     shape_mesh = Triangle.constrained_triangulation(points, points_map, cross_section_edges)
 
-    return shape_mesh, cross_section_edges
+#     return shape_mesh, cross_section_edges
 
-end
+# end
 
 
 """
