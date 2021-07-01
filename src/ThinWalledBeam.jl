@@ -21,9 +21,9 @@ Base.@kwdef mutable struct Model   #using Parameters.jl macro here to help assig
    G::Union{Array{Float64}, Nothing} = nothing
    ax::Union{Array{Float64}, Nothing} = nothing
    ay::Union{Array{Float64}, Nothing} = nothing
-   ay_kx::Union{Array{Float64}, Nothing} = nothing
-   kx::Union{Array{Float64}, Nothing} = nothing
-   kϕ::Union{Array{Float64}, Nothing} = nothing
+   ay_kx::Union{Array{Array{Float64}}, Nothing} = nothing
+   kx::Union{Array{Array{Float64}}, Nothing} = nothing
+   kϕ::Union{Array{Array{Float64}}, Nothing} = nothing
 
    qx::Union{Array{Float64}, Nothing} = nothing
    qy::Union{Array{Float64}, Nothing} = nothing
@@ -250,15 +250,26 @@ function governing_equations(model)
    A32 = zeros(Float64, num_nodes,num_nodes)
    A33 = zeros(Float64, num_nodes,num_nodes)
 
+   #Sum spring terms if there are more than one on a cross-section.
+   sum_kx = sum(model.kx)
+   sum_kϕ = sum(model.kϕ)
+
+   num_kx_springs = size(model.kx)[1]
+   kx_ay_kx = [model.kx[i][:] .* model.ay_kx[i][:] for i=1:num_kx_springs] #multiply kx*ay_kx terms for each spring first
+   sum_kx_ay_kx = sum(kx_ay_kx) #then sum them
+   
+   kx_ay_kx_ay_kx = [model.kx[i][:] .* model.ay_kx[i][:] .* model.ay_kx[i][:] for i=1:num_kx_springs]
+   sum_kx_ay_kx_ay_kx = sum(kx_ay_kx_ay_kx)
+
    #Calculate operator quantities on LHS  AU=B.
    for i = 1:num_nodes
-      A11[i,:] = model.E .* model.Iy .* Azzzz[i,:] .+ model.kx .* AI[i,:]
+      A11[i,:] = model.E .* model.Iy .* Azzzz[i,:] .+ sum_kx .* AI[i,:]
       A12[i,:] = model.E .* model.Ixy .* Azzzz[i,:]
-      A13[i,:] = model.kx .* model.ay_kx .*AI[i,:]
+      A13[i,:] = sum_kx_ay_kx .*AI[i,:]
       A21[i,:] = model.E .* model.Ixy .* Azzzz[i,:]
       A22[i,:] = model.E .* model.Ix .* Azzzz[i,:]
-      A31[i,:] = model.kx .* model.ay_kx .* AI[i,:]
-      A33[i,:] = model.E .* model.Cw .* Azzzz[i,:] .- model.G .* model.J .* Azz[i,:] .+ model.kx .* model.ay_kx .* model.ay_kx .* AI[i,:] .+ model.kϕ .* AI[i,:] .+ model.qx .* model.ax .* AI[i,:] .- model.qy .* model.ay .* AI[i,:]
+      A31[i,:] = sum_kx_ay_kx .* AI[i,:]
+      A33[i,:] = model.E .* model.Cw .* Azzzz[i,:] .- model.G .* model.J .* Azz[i,:] .+ sum_kx_ay_kx_ay_kx .* AI[i,:] .+ sum_kϕ .* AI[i,:] .+ model.qx .* model.ax .* AI[i,:] .- model.qy .* model.ay .* AI[i,:]
    end
 
    #Calculate RHS of AU=B.

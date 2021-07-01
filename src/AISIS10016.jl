@@ -2,7 +2,7 @@ module AISIS10016
 
 using CSV, DataFrames
 
-export table_g53
+export table_g53, f322, app2C2262
 
 function e2(Fcre, Fy, Ag, ASDorLRFD)
 
@@ -50,6 +50,30 @@ function f321(Mne, Mcrℓ, ASDorLRFD)
     end
 
     eMnℓ = Mnℓ * StrengthFactor
+
+    return Mnℓ, eMnℓ
+
+end
+
+function f322(Mne, Mcrℓ, My_net, ASDorLRFD)
+
+    if ASDorLRFD==0
+        StrengthFactor=1/1.67
+    elseif ASDorLRFD==1
+        StrengthFactor=0.90
+    else
+        StrengthFactor=1.0   #to just get nominal strength
+    end
+
+    #Mcrℓ includes the influence of holes here.
+    Mnℓ, eMnℓ = f321(Mne, Mcrℓ, ASDorLRFD)
+
+    if Mnℓ > My_net
+
+        Mnℓ = My_net 
+        eMnℓ = Mnℓ * StrengthFactor
+        
+    end
 
     return Mnℓ, eMnℓ
 
@@ -351,6 +375,12 @@ end
 function app23332(β, kϕfe, kϕwe, kϕ, kϕfg, kϕwg)
 
     Fcrd=β*(kϕfe+kϕwe+kϕ)/(kϕfg+kϕwg)
+
+end
+
+function app2C2262(t, Lh, Lcrd)
+
+    tr = t * (1 - Lh/Lcrd)^(1/3)
 
 end
 
