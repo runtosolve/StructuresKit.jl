@@ -1,5 +1,8 @@
 module Geometry
 
+using StaticArrays
+using LinearAlgebra
+
 export rotation_matrix, vector_components, line_coordinates, circular_curve, triangle_area, triangle_centroid
 
 #counterclockwise, right hand rule
@@ -139,6 +142,34 @@ function triangle_centroid(x1, y1, x2, y2, x3, y3)
     return cx, cy
 
 end
+
+
+#Added from https://discourse.julialang.org/t/point-to-line-distance-in-geometrybasics-or-another-geometry-package/42501/5
+
+"Point in N dimensions"
+struct Point{N,T}
+    x::SVector{N,T}
+end
+
+"Line in N dimensions. `p` is a point on the line and `u` is the direction vector
+(not necessarily normalized). Parametrised as \$p + ut\$"
+struct Line{N,T}
+    p::SVector{N,T}
+    u::SVector{N,T}
+end
+
+distance_between_two_points(p1::Point{N}, p2::Point{N}) where {N} = norm(p1.x - p2.x)
+
+function distance_between_point_and_line(y::Point{N}, l::Line{N}) where {N}
+    p, u = l.p, l.u
+    
+    t = (y.x - p) ⋅ u / (u ⋅ u) 
+    x = Point(p + t*u)
+    
+    return distance_between_two_points(x, y)
+end
+
+#Added from https://discourse.julialang.org/t/point-to-line-distance-in-geometrybasics-or-another-geometry-package/42501/5
 
 
 end #module

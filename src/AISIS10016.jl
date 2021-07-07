@@ -79,6 +79,53 @@ function f322(Mne, Mcrℓ, My_net, ASDorLRFD)
 
 end
 
+
+#inelastic reserve flexural local buckling
+function f323(My, Mcrl, Sc, St, Z, Fy, ASDorLRFD)
+
+    lambda_l = sqrt(My/Mcrl)
+
+    Cyl = sqrt(0.776/lambda_l)
+
+    if Cyl > 3
+
+        Cyl = 3
+
+    end
+
+    Mp = Fy * Z
+
+    Myc = Fy * Sc
+
+    Cyt = 3
+    Myt3 = My + (1 - 1 / Cyt^2) * (Mp - My)
+
+    if Sc <= St  #first yield in compression
+        Mnl = My + (1 - 1/Cyl^2) * (Mp-My)
+    elseif Sc > St  #first yield in tension
+        Mnl = Myc + (1-1/Cyl^2) * (Mp-My)
+
+        if Mnl > Myt3
+            Mnl = Myt3
+        end
+
+    end
+
+    if ASDorLRFD == 0
+        Ω = 1.67
+        eMnl = Mnl / Ω
+    elseif ASDorLRFD == 1
+        ϕ = 0.90
+        eMnl = ϕ * Mnl
+    elseif ASDorLRFD == 2
+        eMnl = Mnl  #nominal
+
+    end
+
+    return lambda_l, Cyl, Mp, Myc, Myt3, Mnl, eMnl
+
+end
+
 function f411(My, Mcrd, ASDorLRFD)
 
     if ASDorLRFD==0
@@ -104,7 +151,50 @@ function f411(My, Mcrd, ASDorLRFD)
 
 end
 
-function g21(E, h, t, Fy, Vcr, ASDorLRFD)
+
+
+#inelastic reserve flexural distortional buckling
+function f43(My, Mcrd, Sc, St, Z, Fy, ASDorLRFD)
+
+    lambda_d = sqrt(My/Mcrd)
+    Cyd = sqrt(0.673/lambda_d)
+
+    if Cyd > 3
+        Cyd = 3
+    end
+
+    Mp = Fy * Z
+
+    Myc = Fy * Sc
+
+    Cyt = 3
+    Myt3 = My + (1-1/Cyt^2)*(Mp - My)
+
+    if Sc <= St  #first yield in compression
+        Mnd = My + (1 - 1/Cyd^2)*(Mp-My)
+    elseif Sc > St  #first yield in tension
+        Mnd = Myc + (1-1/Cyd^2)*(Mp-My)
+        if Mnd > Myt3
+            Mnd = Myt3
+        end
+    end
+
+    if ASDorLRFD == 0
+        Ω = 1.67
+        eMnd = Mnd / Ω
+    elseif ASDorLRFD == 1
+        ϕ = 0.90
+        eMnd = ϕ * Mnd
+    elseif ASDorLRFD == 2
+        eMnd = Mnd  #nominal
+    end
+
+    return lambda_d, Cyd, Mp, Myc, Myt3, Mnd, eMnd
+
+end
+
+
+function g21(h, t, Fy, Vcr, ASDorLRFD)
 
     if ASDorLRFD==0
         StrengthFactor=1/1.60

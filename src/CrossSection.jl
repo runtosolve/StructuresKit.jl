@@ -5,6 +5,7 @@ using LinearAlgebra
 using CSV
 using DataFrames
 using TriangleMesh
+using StaticArrays
 
 using ..Geometry
 
@@ -1025,6 +1026,55 @@ function define_w_shape_centerline_model(bf, tf, d, n)
     w_shape[3] = CrossSectionBranch(anchor, direction, magnitude, n[3])
 
     return w_shape
+
+end
+
+
+
+
+function insert_cross_section_node(node_geometry, element_connectivity, element_thicknesses, new_node_geometry)
+
+    num_elem = size(element_connectivity)[1]
+    num_nodes = size(node_geometry)[1]
+
+    distance_to_elements = Array{Float64}(undef, num_elem)
+
+    #Define the new node.
+    new_node = Geometry.Point(SA[new_node_geometry[1], new_node_geometry[2]])
+
+    for i = 1:num_elem
+        
+        node_i = Int(element_connectivity[i, 1])
+        node_j = Int(element_connectivity[i, 2])
+
+        # Point on the element line, element line vector
+        element_i = Geometry.Line(SA[node_geometry[node_i,1], node_geometry[node_i,2]], SA[node_geometry[node_j,1] - node_geometry[node_i,1], node_geometry[node_j,2] - node_geometry[node_i,2]])
+
+        #Distance from new node to element line
+        distance_to_elements[i] = Geometry.distance_between_point_and_line(new_node, element_i)
+
+    end
+
+    #Sort the node to element distances from low to high.
+    distance_indices = sortperm(distance_to_elements)
+
+    #This is the element to split.
+    split_element_index = distance_indices[1]
+
+    #Add new node to the end of the node geometry array.
+    node_geometry = [node_geometry; new_node_geometry]
+
+    #Update the element definitions to include the new node.
+    new_node_number = num_nodes + 1
+    new_element = [new_node_number  element_connectivity[split_element_index, 2]]  #This is the second element in the split.
+    element_connectivity[split_element_index, 2] = new_node_number  #Update the first element in the split.
+    element_connectivity = [element_connectivity[1:split_element_index, :]; new_element; element_connectivity[split_element_index+1:end, :]]
+    
+    #Update the element thickness array.
+    new_element_thickness = element_thicknesses[split_element_index]
+    element_thicknesses = [element_thicknesses[1:split_element_index, :]; new_element_thickness; element_thicknesses[split_element_index+1:end, :]]
+
+    return node_geometry, element_connectivity, element_thicknesses
 
 end
 

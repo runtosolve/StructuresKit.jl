@@ -85,17 +85,17 @@ function cfs_pull_through_plate_stiffness(x, c, tw)
 
     #Check if the screw location in the R-panel is within the tested range.
 
-    if (tw > maximum(t_range)) | (tw < minimum(t_range))
-        print("Beware!  The deck base metal thickness, tw, is outside the tested range.")
-    end
+    # if (tw > maximum(t_range)) | (tw < minimum(t_range))
+    #     print("Beware!  The deck base metal thickness, tw, is outside the tested range.")
+    # end
 
-    if (c > maximum(c_range)) | (c < minimum(c_range))
-        print("Beware!  The fastener distance from the purlin pivot point, c, is outside the tested range.")
-    end
+    # if (c > maximum(c_range)) | (c < minimum(c_range))
+    #     print("Beware!  The fastener distance from the purlin pivot point, c, is outside the tested range.")
+    # end
 
-    if (x > maximum(x_range)) | (x < minimum(x_range))
-        print("Beware!  The fastener distance from the R-panel major rib, x, is outside the tested range.")
-    end
+    # if (x > maximum(x_range)) | (x < minimum(x_range))
+    #     print("Beware!  The fastener distance from the R-panel major rib, x, is outside the tested range.")
+    # end
 
     #Define the number of parameters that will be used to predict kp.
 
