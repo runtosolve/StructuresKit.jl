@@ -1037,47 +1037,190 @@ function insert_cross_section_node(node_geometry, element_connectivity, element_
     num_elem = size(element_connectivity)[1]
     num_nodes = size(node_geometry)[1]
 
-    distance_to_elements = Array{Float64}(undef, num_elem)
+    element_position_marker = Array{Float64}(undef, num_elem)
 
     #Define the new node.
-    new_node = Geometry.Point(SA[new_node_geometry[1], new_node_geometry[2]])
+    new_node = [new_node_geometry[1], new_node_geometry[2]]
 
     for i = 1:num_elem
         
         node_i = Int(element_connectivity[i, 1])
         node_j = Int(element_connectivity[i, 2])
 
+        #direction vector from new node to node i
+        point_i = node_geometry[node_i, :]
+        vector_i = point_i - new_node
+
+        #direction vector from new node to node j
+        point_j = node_geometry[node_j, :]
+        vector_j = point_j - new_node
+
         # Point on the element line, element line vector
         element_i = Geometry.Line(SA[node_geometry[node_i,1], node_geometry[node_i,2]], SA[node_geometry[node_j,1] - node_geometry[node_i,1], node_geometry[node_j,2] - node_geometry[node_i,2]])
 
-        #Distance from new node to element line
-        distance_to_elements[i] = Geometry.distance_between_point_and_line(new_node, element_i)
+        #If dot product is positive, than means that both nodes are ahead of the new node.  If dot product is negative then position vectors are pointing in opposite directions.
+        element_position_marker[i] = vector_i   ⋅  vector_j  
 
     end
 
-    #Sort the node to element distances from low to high.
-    distance_indices = sortperm(distance_to_elements)
-
     #This is the element to split.
-    split_element_index = distance_indices[1]
+    split_element_index = findfirst(x->x<0, element_position_marker)
 
-    #Add new node to the end of the node geometry array.
-    node_geometry = [node_geometry; new_node_geometry]
+    if split_element_index==nothing   #for cases where node does not fall within the line segment of an element
 
-    #Update the element definitions to include the new node.
-    new_node_number = num_nodes + 1
-    new_element = [new_node_number  element_connectivity[split_element_index, 2]]  #This is the second element in the split.
-    element_connectivity[split_element_index, 2] = new_node_number  #Update the first element in the split.
-    element_connectivity = [element_connectivity[1:split_element_index, :]; new_element; element_connectivity[split_element_index+1:end, :]]
-    
-    #Update the element thickness array.
-    new_element_thickness = element_thicknesses[split_element_index]
-    element_thicknesses = [element_thicknesses[1:split_element_index, :]; new_element_thickness; element_thicknesses[split_element_index+1:end, :]]
+        updated_node_geometry = deepcopy(node_geometry)
+        updated_element_connectivity = deepcopy(element_connectivity)
+        updated_element_thicknesses = deepcopy(element_thicknesses)
 
-    return node_geometry, element_connectivity, element_thicknesses
+    else
+
+        #Add new node to the end of the node geometry array.
+        updated_node_geometry = [node_geometry; new_node_geometry]
+
+        #Update the element definitions to include the new node.
+        new_node_number = num_nodes + 1
+        new_element = [new_node_number  element_connectivity[split_element_index, 2]]  #This is the second element in the split.
+        updated_element_connectivity = deepcopy(element_connectivity)
+        updated_element_connectivity[split_element_index, 2] = new_node_number  #Update the first element in the split.
+        updated_element_connectivity = [updated_element_connectivity[1:split_element_index, :]; new_element; updated_element_connectivity[split_element_index+1:end, :]]
+        
+        #Update the element thickness array.
+        new_element_thickness = element_thicknesses[split_element_index]
+        updated_element_thicknesses = deepcopy(element_thicknesses)
+        updated_element_thicknesses = [updated_element_thicknesses[1:split_element_index, :]; new_element_thickness; updated_element_thicknesses[split_element_index+1:end, :]]
+
+    end
+
+    return updated_node_geometry, updated_element_connectivity, updated_element_thicknesses
 
 end
 
+function calculate_axis_area(element_connectivity, element_thicknesses, node_geometry, axis_location, about_axis)
+
+    num_elem = size(element_connectivity)[1]
+
+    A_elements = zeros(Float64, num_elem)
+
+    for i=1:num_elem
+
+        node_i = trunc(Int, element_connectivity[i, 1])
+        node_j = trunc(Int, element_connectivity[i, 2])
+
+        x_i = node_geometry[node_i, 1]
+        x_j = node_geometry[node_j, 1]
+        y_i = node_geometry[node_i, 2]
+        y_j = node_geometry[node_j, 2]
+
+        length_i = norm([x_j, y_j] - [x_i, y_i])
+
+        A_i = length_i * element_thicknesses[i]
+
+        if about_axis == "y"
+
+            z_i = mean([x_i, x_j])
+
+        elseif about_axis == "x"
+
+            z_i = mean([y_i, y_j])
+
+        end
+
+        if (z_i - axis_location) > 0  #Find which side of the axis A_i is on.
+
+            A_elements[i] = A_i
+
+        elseif (z_i - axis_location) < 0
+
+            A_elements[i] = -A_i
+            
+        end
+
+    end
+
+    return A_elements
+
+end
+
+function calculate_plastic_neutral_axis_location(element_connectivity, element_thicknesses, node_geometry, about_axis)
+
+    if about_axis == "x"
+
+        axis_iterator = sort(unique(node_geometry[:, 2]))
+
+    elseif about_axis == "y"
+
+        axis_iterator = sort(unique(node_geometry[:, 1]))
+
+    end
+
+    num_axis_points = length(axis_iterator)
+
+    sum_A_elements = Array{Float64}(undef, num_axis_points)
+
+    for i=1:num_axis_points
+
+        axis_location = axis_iterator[i]
+
+        #Define an array of all the element areas.
+        A_elements = calculate_axis_area(element_connectivity, element_thicknesses, node_geometry, axis_location, about_axis)
+
+        sum_A_elements[i] = sum(A_elements)
+
+    end
+
+    #Find sign switch on area sum.
+    plastic_neutral_axis_index = findfirst(x->x<0, sum_A_elements)
+
+    #Decide if last positive or first negative is a better solution.
+    if abs(sum_A_elements[plastic_neutral_axis_index]) > abs(sum_A_elements[plastic_neutral_axis_index-1])
+        plastic_neutral_axis_index = plastic_neutral_axis_index - 1
+    end
+
+    plastic_neutral_axis_location = axis_iterator[plastic_neutral_axis_index]
+
+    return plastic_neutral_axis_location
+
+end
+
+
+function calculate_plastic_section_modulus(node_geometry, element_connectivity, element_thicknesses, plastic_neutral_axis_location, about_axis)
+
+    num_elem = size(element_connectivity)[1]
+
+    Z_i = zeros(Float64, num_elem)
+
+    for i=1:num_elem
+
+        node_i = trunc(Int, element_connectivity[i, 1])
+        node_j = trunc(Int, element_connectivity[i, 2])
+
+        x_i = node_geometry[node_i, 1]
+        x_j = node_geometry[node_j, 1]
+        y_i = node_geometry[node_i, 2]
+        y_j = node_geometry[node_j, 2]
+
+        length_i = norm([x_j, y_j] - [x_i, y_i])
+        A_i = length_i * element_thicknesses[i]
+
+        if about_axis == "y"
+
+            z_i = mean([x_i, x_j])
+
+        elseif about_axis == "x"
+
+            z_i = mean([y_i, y_j])
+
+        end
+
+        Z_i[i] = A_i * abs(z_i - plastic_neutral_axis_location)
+
+    end
+
+    Z = sum(Z_i)
+
+    return Z
+
+end
 
 
 end #module
